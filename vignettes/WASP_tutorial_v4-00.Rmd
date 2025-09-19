@@ -1,0 +1,1724 @@
+---
+title: "WASP_tutorial_v4-00"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{WASP_tutorial_v4-00}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Re-load previous session objects for quick analysis (if already processed and annotated)
+```{r inst, echo=T, results=T, message=F, warning=F,eval=FALSE}
+#---- Load data and session objects (if already processed and annotated) ----
+# libraries
+library(Azimuth)
+library(Seurat)
+library(patchwork)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(chromVAR)
+library(JASPAR2020)
+library(TFBSTools)
+library(plotly)
+library(htmlwidgets)
+library(dplyr)
+library(CellChat)
+library(WASP)
+# RDS containing processed and annotated GEX and ATAC data
+# (with transcription factors calculated by chromVAR)
+getwd()
+setwd("/home/ncsteven/analyze/Hiro.CF.multiome")
+d <- readRDS("analysis/data.annotated.TFs.rds")
+
+d@meta.data[["Group"]] <- factor(
+  d@meta.data[["Group"]],
+  levels = c("CF", "NonCF")
+)
+# Gene list
+lg1 <- read.table(
+  "ref/gene_ref.txt",
+  sep = "\t",
+  header = TRUE
+)
+# Gene list 2
+lg2 <- c("STAT1", "NFKB1", "IRF1", "IRF2")
+# TF list
+ltf1 <- c(
+  "STAT1", "NFKB1",
+  "NFKB2", "RELA", "REL", "RELB",
+  "NKAP", "NFKBIA", "NFKBIB", "NFKBIE",
+  "NKRF",
+  "IRF1", "IRF2",
+  "CXCL9", "CXCL10", "CXCL17", "CIITA",
+  "HLA-DRA", "HLA-DRB1", "HLA-DQA1", "HLA-DQB1"
+)
+# Custom color schemes
+## Dot plots
+col_dotp <- RColorBrewer::brewer.pal(name = "YlOrBr", n = 9)
+col_dotp2 <- c("#2e86c1", "white", "darkred")
+## Heatmaps
+col_hmap <- c("#2e86c1", "white", "#f5b7b1", "#e74c3c")
+## GEX UMAPs
+col_umap <- c("lightblue", "red", "darkred")
+## ATAC UMAPs
+col_umap2 <- c("#2e86c1", "white", "#f5b7b1", "#e74c3c")
+# Patient demographics (to account for confounding effects of age and sex)
+dmg <- data.frame(
+  "Code" = c(
+    "DD023T", "DD024T", "DD025T", "DD026T",
+    "KK006T", "KK007T", "KK010T", "KK001U"
+  ),
+  "Age" = as.factor(
+    c(24, 49, 42, 66,
+      26, 24, 24, 26)
+  ),
+  "Sex" = c(
+    "M", "M", "M", "F",
+    "F", "F", "F", "F"
+  )
+)
+dmg2 <- dplyr::left_join(
+  data.frame("Code" = d@meta.data[["Code"]]),
+  dmg,
+  by = "Code"
+)
+d <- SeuratObject::AddMetaData(
+  d,
+  dmg2[, 2:3]
+)
+```
+
+## Data processing
+```{r data-proc, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+# Setup environment
+## location of latest R version is in usr/bin/R (use this path when opening R)
+## ensure that conda is activated, otherwise macs2 won't be found
+## MACS2 is located in base conda; scVI is located in scvi-env
+# Define processing parameters
+l_params <- sc_multiome_params(
+  data.frame(
+    # ID column name
+    "Code" = basename(list.files("data/")),
+    # 1st metadata column (include in CellRanger folder name)
+    "Group" = as.factor(
+      ifelse(
+        grepl("DD", basename(list.files("data/"))),
+        "NonCF",
+        "CF"
+      )
+    )
+  ),
+  "ref/gencode.v45.primary_assembly.annotation.gtf",
+  "ref/GRCh38.primary_assembly.genome.fa"
+)
+l_params
+
+list_data <- sc_process_batch_multiome(
+  # parameter list
+  l_params,
+  # Project name
+  "Hiro.CF.multiome",
+  # Minimum cells per feature
+  5,
+  # Minimum features per cell
+  200,
+  # ATAC counts upper limit
+  100000,
+  # RNA counts upper limit
+  25000,
+  # RNA counts lower limit
+  1000,
+  # Percentage mitochondrial reads upper limit
+  20,
+  # Nucleosome signal upper limit
+  2.5,
+  # TSS enrichment lower limit
+  2,
+  # Run in parallel?
+  TRUE,
+  # Core percentage
+  0.1
+)
+lapply(list_data, function(x) ncol(x[[1]]))
+sum(as.data.frame(lapply(list_data, function(x) ncol(x[[1]]))))
+saveRDS(list_data, "processed/data.processed.files.rds")
+## Add region stats and linkages after integration
+#---- Data Integration ----
+d_integrated <- sc_integrate_data(
+  l_so = list_data,
+  l_par = l_params,
+  proc_mode = "multiome",
+  parl = TRUE,
+  core_perc = 0.5
+)
+```
+
+## CellType Prediction
+```{r cell-pred, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Cell Type Prediction ----
+# Predictions and Marker genes
+## Assign major types based on RNA, then subcluster based on ATAC
+d_int <- readRDS("analysis/data.integrated.rds")
+d_pred <- readRDS("analysis/data.predictedtype.rds")
+
+## Top-10 marker heatmap (GEX)
+p_heatmap_top10 <- sc_top10_marker_heatmap(
+  # Seurat object
+  d_pred,
+  # Assay to use
+  "RNA",
+  # Cluster column
+  "seurat_clusters",
+  # Heatmap width
+  36,
+  # Heatmap height
+  12,
+  # Column fontsize
+  4,
+  # Row fontsize
+  8
+)
+png(
+  "analysis/plot.heatmap.top10.markers.png",
+  width = 42,
+  height = 18,
+  units = "cm",
+  res = 1000
+)
+print(p_heatmap_top10)
+dev.off()
+
+## seurat_cluster UMAP
+ggplot2::ggsave(
+  "analysis/plot.umap.seuratclusters.png",
+  sc_umap_standard(
+    # Seurat object
+    d_int,
+    # metadata column
+    "seurat_clusters",
+    # reduction to plot
+    "wnn.umap"
+  ),
+  height = 8,
+  width = 8,
+  dpi = 700
+)
+
+## Azimuth cell type predictions
+d_int
+library(Azimuth)
+library(Seurat)
+options(future.globals.maxSize = 10000 * 1024^2)
+d_pred <- Azimuth::RunAzimuth(
+  d_int,
+  reference = "lungref"
+)
+d_pred
+names(d_pred@meta.data)
+### Save
+write.table(
+  d_pred@meta.data,
+  "analysis/table.predicted.cell.types.txt",
+  row.names = FALSE,
+  col.names = TRUE,
+  sep = "\t"
+)
+saveRDS(d_pred, "analysis/data.predictedtype.rds")
+
+## Cell Type Prediction Score Distribution
+fun_dist_score <- function(x) {
+  p_score_dist <- ggplot2::ggplot( # nolint
+    x,
+    ggplot2::aes(x = .data[["predicted.ann_finest_level.score"]]) # nolint
+  ) +
+    ggplot2::geom_density(
+      color = "black",
+      fill = col_univ()[[2]] # nolint
+    ) +
+    ggplot2::labs(
+      x = "Prediction Score",
+      y = "Density",
+      title = "Prediction Score Distribution"
+    ) +
+    sc_theme1() # nolint
+  return(p_score_dist)
+}
+ggplot2::ggsave(
+  "analysis/plot.predicted.scores.dist.png",
+  fun_dist_score(d_pred@meta.data),
+  width = 8,
+  height = 8,
+  dpi = 700
+)
+
+### Predicted Cell Type Proportions for Each Cluster
+# Counting function
+fun_predict_prop <- function(
+  x,
+  c,
+  md
+) {
+  data_pred_prop2 <- setNames(
+    dplyr::count(
+      x,
+      .data[[c]] # nolint
+    ),
+    c(c, "Total Cells")
+  )
+  data_pred_prop <- dplyr::count(
+    x,
+    x[, c(md, c)]
+  )
+  data_pred_prop <- dplyr::left_join(
+    data_pred_prop,
+    data_pred_prop2,
+    by = c
+  )
+  data_pred_prop[["Proportion"]] <- round(
+    data_pred_prop$n /
+      data_pred_prop$`Total Cells`,
+    digits = 3
+  )
+  return(data_pred_prop)
+}
+
+## Cell Type Proportion Summary and Consensus Type
+t_pred <- dplyr::filter(
+  fun_predict_prop(
+    d_pred@meta.data,
+    "predicted.ann_finest_level",
+    c("Code", "seurat_clusters")
+  ),
+  .data[["Proportion"]] >
+    0.001
+)
+write.table(
+  t_pred,
+  "analysis/table.predicted.prop.txt",
+  col.names = TRUE,
+  row.names = FALSE,
+  sep = "\t"
+)
+t_pred_sum <- setNames(
+  aggregate(
+    t_pred[["Proportion"]],
+    list(
+      t_pred[["seurat_clusters"]],
+      t_pred[["predicted.ann_finest_level"]]
+    ),
+    FUN = sum
+  ),
+  c("seurat_clusters", "predicted.id", "Proportion")
+)
+write.table(
+  t_pred_sum,
+  "analysis/table.predicted.prop.summary.txt",
+  col.names = TRUE,
+  row.names = FALSE,
+  sep = "\t"
+)
+## Return cell type predictions and assign highest ranked type to each cell
+d_pred_prop <- dplyr::select(
+  unique(
+    dplyr::left_join(
+      setNames(
+        aggregate(
+          t_pred_sum[["Proportion"]],
+          list(
+            t_pred_sum[["seurat_clusters"]]
+          ),
+          FUN = max
+        ),
+        c("seurat_clusters",
+          "Proportion"
+        )
+      ),
+      t_pred_sum[, c("predicted.id", "Proportion")],
+      by = c("Proportion")
+    )
+  ),
+  c("seurat_clusters", "predicted.id", "Proportion")
+)
+d_pred_prop <- d_pred_prop[!duplicated(d_pred_prop[["seurat_clusters"]]), ]
+d_pred_prop
+d_pred_asn <- dplyr::mutate(
+  d_pred_prop,
+  "predicted.id" = paste(
+    d_pred_prop[["seurat_clusters"]],
+    d_pred_prop[["predicted.id"]],
+    sep = "."
+  )
+)
+
+### Change grouping columns to factors
+d_pred_asn[["predicted.id"]] <- factor(
+  d_pred_asn[["predicted.id"]],
+  levels = c(gtools::mixedsort(d_pred_asn[["predicted.id"]]))
+)
+
+## Validate cluster IDs with UMAP panel and proportion lists then add metadata
+## to Seurat and save annotated object
+ggplot2::ggsave(
+  "analysis/plot.predicted.scores.umaps.png",
+  sc_umap_panel(
+    d_pred,
+    c(
+      "seurat_clusters", "Group", "Code",
+      "predicted.ann_level_1", "predicted.ann_level_2", "predicted.ann_level_3"
+    ),
+    "wnn.umap"
+  ),
+  width = 30,
+  height = 20,
+  dpi = 400
+)
+
+ggplot2::ggsave(
+  "analysis/plot.predicted.umap.label.clus.png",
+  sc_umap_standard(
+    d_pred,
+    c("seurat_clusters"
+    ),
+    "wnn.umap",
+    "2D"
+  ),
+  width = 8,
+  height = 8,
+  dpi = 800
+)
+
+### 3D UMAP with plotly
+d_pred <- Seurat::RunUMAP(
+  d_pred,
+  nn.name = "weighted.nn",
+  reduction.name = "wnn.umap.3D",
+  reduction.key = "wnnUMAP3D_",
+  n.components = 3
+)
+sc_umap_standard(
+  d_pred,
+  c("Code"
+  ),
+  "wnn.umap.3D",
+  "3D"
+)
+
+rmarkdown::render(
+  input = "analysis.hiro.multiome.3Dumaps.Rmd",
+  output_file = paste("3D.umaps.html", sep = "")
+)
+
+#---- Final Cell Type Assignment (for all clusters) ----
+# Load RDS
+d <- readRDS("analysis/data.predictedtype.rds")
+names(d@meta.data)
+sort(unique(d@meta.data$predicted.ann_finest_level))
+
+# Manually assign existing CellType column using consensus IDs
+d_ct <- dplyr::select(
+  dplyr::left_join(
+    d@meta.data["seurat_clusters"],
+    data.frame(
+      "seurat_clusters" = paste(
+        sort(unique(d@meta.data$seurat_clusters))
+      ),
+      "CellType" = factor(
+        c("1.AT2", "2.AT2", "3.Classical monocytes",
+          "4.Multiciliated", "5.Secretory",
+          "6.EC arterial", "7.NK cells",
+          "8.Alveolar macrophages", "9.AT2", "10.DC2",
+          "11.AT2", "12.AT1", "13.EC venous pulmonary",
+          "14.Basal resting", "15.AT2", "16.Secretory",
+          "17.B cells", "18.AT2", "19.Smooth muscle",
+          "20.AT2", "21.Adventitial fibroblasts",
+          "22.Multiciliated", "23.AT2", "24.Rare",
+          "25.AT2", "26.AT2"
+        ),
+        levels = c("1.AT2", "2.AT2", "3.Classical monocytes",
+          "4.Multiciliated", "5.Secretory",
+          "6.EC arterial", "7.NK cells",
+          "8.Alveolar macrophages", "9.AT2", "10.DC2",
+          "11.AT2", "12.AT1", "13.EC venous pulmonary",
+          "14.Basal resting", "15.AT2", "16.Secretory",
+          "17.B cells", "18.AT2", "19.Smooth muscle",
+          "20.AT2", "21.Adventitial fibroblasts",
+          "22.Multiciliated", "23.AT2", "24.Rare",
+          "25.AT2", "26.AT2"
+        )
+      )
+    ),
+    by = "seurat_clusters"
+  ),
+  .data[["CellType"]]
+)
+
+d <- SeuratObject::AddMetaData(
+  d,
+  d_ct[["CellType"]],
+  col.name = "CellType"
+)
+
+# UMAP with final cluster assignments
+## Cell Type
+d
+ggplot2::ggsave(
+  "analysis/plot.umap.CellType.png",
+  sc_umap_standard(
+    # Seurat object
+    d,
+    # metadata column
+    "CellType",
+    # slot
+    "wnn.umap",
+    # 2D or 3D
+    "2D"
+  ),
+  height = 8,
+  width = 8,
+  dpi = 700
+)
+## Save analysis rds
+saveRDS(d, "analysis/data.WNN.annotated.rds")
+```
+
+## Analyze a Reclustered Subset of scRNA-Seq or Multiome Data
+### Reclustering w/DGEA and DA analysis
+#### 1. Basal cells
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+## Recluster basal cells
+d
+names(d@meta.data)
+levels(d@meta.data[["CellType"]])
+d_recluster <- sc_recluster(
+  title1 = "basal",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "Basal",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+names(d_recluster)
+## Save RDS
+saveRDS(
+  d_recluster[["data"]],
+  paste(
+    "analysis/d_re",
+    "basal",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+```
+#### 2. Secretory cells
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+## Recluster basal cells
+d_recluster <- sc_recluster(
+  title1 = "secretory",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "Secretory",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+names(d_recluster)
+## Save RDS
+saveRDS(
+  d_recluster[["data"]],
+  paste(
+    "analysis/1_recluster/secretory/d_re",
+    "secretory",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+```
+#### 3. Alveolar cells
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+## Recluster alveolar cells
+levels(d@meta.data[["CellType"]])
+d_recluster <- sc_recluster(
+  title1 = "alveolar",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "AT",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_recluster[["data"]],
+  paste(
+    "analysis/1_recluster/alveolar/d_re",
+    "alveolar",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+## Recluster potential palisading AT2 cells
+levels(d@meta.data[["CellType"]])
+d_recluster <- sc_recluster(
+  title1 = "palAT2",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "^1.AT2$",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_recluster[["data"]],
+  paste(
+    "analysis/1_recluster/alveolar/d_re",
+    "alveolar_palAT2",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+```
+#### 4. Immune cells
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+## Recluster monocytes, macs, dcs
+levels(d@meta.data[["CellType"]])
+d_re4a <- sc_recluster(
+  title1 = "immune_macmon",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "DC|macro|monocyt",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_re4a[["data"]],
+  paste(
+    "analysis/d_re",
+    "immune_macmon",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+## Recluster NK, B cells
+levels(d@meta.data[["CellType"]])
+d_re4b <- sc_recluster(
+  title1 = "immune_nktb",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "NK|17",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_re4b[["data"]],
+  paste(
+    "analysis/d_re",
+    "immune_nktb",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+```
+#### 5. Combined cell types (Epithelial and Immune)
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+## Recluster all epithelial cells
+levels(d@meta.data[["CellType"]])
+d_re5a <- sc_recluster(
+  title1 = "epi",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "AT|ciliat|Secret|Basal",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_re5a[["data"]],
+  paste(
+    "analysis/d_re",
+    "epi",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+
+## Recluster all immune cells
+levels(d@meta.data[["CellType"]])
+d_re5a <- sc_recluster(
+  title1 = "immune",
+  so = d,
+  rc_type = "Mult",
+  ct_col = "CellType",
+  ct = "NK|17|macro|monocyt|DC",
+  md_list = c("Code", "Group", "Age", "Sex"),
+  prop_list = c("Group"),
+  cor_col = c("Code", "Age", "Sex"),
+  col1 = col_hmap
+)
+## Save RDS
+saveRDS(
+  d_re5a[["data"]],
+  paste(
+    "analysis/d_re",
+    "immune",
+    "subset.RDS",
+    sep = "_"
+  ),
+)
+```
+### Visualization of Reclustering: CellType and Expression UMAPs
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+# Final reclustered UMAPs (Individual)
+sc_visualize(
+  ptype = "umap_std",
+  p_params = list(
+    "file" = "secretory",
+    "obj_list" = d_recluster[["data"]],
+    "var" = "recluster",
+    "dimr" = "re_wnn_umap",
+    "opt" = list(
+      "2D",
+      col_univ(),
+      c(0.25, 0.15),
+      8, 8, 900
+    )
+  )
+)
+
+#---- GEX UMAPs and Violin Plots ----
+# Filter gene set to include unique genes (unless picking from specific set)
+sc_visualize(
+  ptype = "umap_gex_list",
+  p_params = list(
+    "obj_list" = list(
+      "secretory" = d_recluster[["data"]]
+    ),
+    "asy" = "sct",
+    "var" = "recluster",
+    "dimr" = "re_wnn_umap",
+    "lg" = lg1[lg1[["SetID"]] == "Palisading AT2", ],
+    "cores" = 12,
+    "col" = col_umap
+  )
+)
+
+```
+
+### Cell Type Predictions for Reclustered Data
+```{r pred2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+lp1 <- data.frame(
+  "Set" = c(
+    "alveolar", "basal", "epithelial",
+    "immune_macmon", "immune_nk", "secretory"
+  ),
+  "RDSloc" = c(
+    "analysis/1_recluster/alveolar/d_re_alveolar_subset.RDS",
+    "analysis/1_recluster/basal/d_re_basal_subset.RDS",
+    "analysis/1_recluster/epithelial/d_re_epi_subset.RDS",
+    "analysis/1_recluster/immune_macmon/d_re_immune_macmon_subset.RDS",
+    "analysis/1_recluster/immune_nk/d_re_immune_nktb_subset.RDS",
+    "analysis/1_recluster/secretory/d_re_secretory_subset.RDS"
+  )
+)
+# Run predictions for each set in list
+lapply(
+  seq.int(1, nrow(lp1), 1),
+  function(x) {
+    dre <- readRDS(lp1[x, "RDSloc"])
+    # Run Reclustering
+    dre2 <- sc_predict(
+      so = dre,
+      md_list = c("Group"),
+      cl_var = "recluster",
+      f_size = 100000
+    )
+    # Save Results
+    sc_save_pred(
+      so_pred = dre2,
+      file1 = paste("predicted_", lp1[x, "Set"], sep = ""),
+      dir1 = "analysis/re"
+    )
+    ## Predicted type UMAP panel
+    ggplot2::ggsave(
+      paste(
+        "analysis/re_predicted_",
+        lp1[x, "Set"],
+        "_umap_panels.png",
+        sep = ""
+      ),
+      sc_umap_panel(
+        so = dre2[[1]],
+        md_list = c(
+          "recluster", "Group",
+          "predicted.ann_level_1", "predicted.ann_level_2",
+          "predicted.ann_level_3",
+          "predicted.ann_level_4"
+        ),
+        slot1 = "re_wnn_umap"
+      ),
+      width = 30,
+      height = 20,
+      dpi = 300
+    )
+    ggplot2::ggsave(
+      paste(
+        "analysis/re_predicted_",
+        lp1[x, "Set"],
+        "_umap_labeled.png",
+        sep = ""
+      ),
+      ggpubr::ggarrange(
+        sc_umap_standard(
+          so = dre2[[1]],
+          md_var = c("recluster"
+          ),
+          slot1 = "re_wnn_umap",
+          dims1 = "2D"
+        ),
+        sc_umap_standard(
+          so = dre2[[1]],
+          md_var = c("predicted.ann_level_4"
+          ),
+          slot1 = "re_wnn_umap",
+          dims1 = "2D"
+        ),
+        nrow = 1
+      ),
+      width = 24,
+      height = 12,
+      dpi = 300
+    )
+  }
+)
+
+```
+
+## Statistical Analysis
+### Differential Gene Expression/Accessibility Analysis (reclustered cell types)
+```{r dgea, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- DGEA for reclustered subsets ----
+## Need to complete for: reclustered basal, macmon, and nktb
+## load subset
+d2 <- list(
+  "alveolar" = readRDS("analysis/1_recluster/alveolar/d_re_alveolar_subset.RDS")
+)
+Seurat::Idents(d2[[1]]) <- "Group"
+diff_output <- sc_diff(
+  so = d2[[1]],
+  md_list = c("Code", "Group", "recluster", "nFeature_sct"),
+  ct = "recluster",
+  mast_comp = "GroupNonCF",
+  mast_name = "NonCF vs. CF",
+  form1 = as.formula(
+    paste(
+      "~", "Group", "+",
+      "nFeature_sct",
+      sep = " "
+    )
+  ),
+  parl = TRUE
+)
+lapply(
+  seq.int(1, length(diff_output), 1),
+  function(x) {
+    write.table(
+      diff_output[[x]],
+      file = paste(
+        "analysis/t_dgea_re_alveolar_",
+        names(diff_output)[[x]],
+        ".txt",
+        sep = ""
+      ),
+      sep = "\t",
+      col.names = TRUE,
+      row.names = FALSE
+    )
+  }
+)
+#---- DA Analysis for reclustered subsets ----
+# 1. Top TF Motifs
+# Top TF motifs for each reclustered subset
+d2_diff <- dplyr::bind_rows(setNames(lapply(
+  seq.int(1, length(d2), 1),
+  function(x) {
+    # Set assay and run DA analysis
+    Seurat::DefaultAssay(d2[[x]]) <- "chromvar"
+    Seurat::Idents(d2[[x]]) <- "recluster"
+    diff_out_act <- Seurat::FindAllMarkers(
+      d2[[x]],
+      min.pct = 0.05,
+      verbose = TRUE,
+      mean.fxn = rowMeans,
+      fc.name = "avg_diff"
+    )
+    # Add motif names
+    diff_out_act[["gene"]] <- unlist(
+      lapply(
+        row.names(diff_out_act),
+        function(x) {
+          name(TFBSTools::getMatrixByID(JASPAR2020, ID = x))
+        }
+      )
+    )
+    diff_out_act[["ID"]] <- rownames(diff_out_act)
+    diff_out_act[["set"]] <- names(d2)[[x]]
+    return(diff_out_act)
+  }
+), names(d2)))
+write.table(
+  d2_diff,
+  file = "analysis/t_re_alveolar_diff_activity_by_clusterID.txt",
+  sep = "\t",
+  col.names = TRUE,
+  row.names = FALSE
+)
+# 2. DA NonCF vs. CF for each cluster
+d2_diff2 <- setNames(lapply(
+  seq.int(1, length(d2), 1),
+  function(x) {
+    # Set assay and run DA analysis comparing groups
+    diff_out_act <- sc_diff(
+      so = d2[[x]],
+      asy = "chromvar",
+      slot1 = "data",
+      md_list = c(
+        "Code", "Group", "recluster", "nFeature_TF"
+      ),
+      ct = "recluster",
+      mast_comp = "GroupNonCF",
+      mast_name = "NonCF vs. CF",
+      form1 = as.formula(
+        paste(
+          "~", "Group", "+",
+          "nFeature_TF",
+          sep = " "
+        )
+      ),
+      parl = TRUE
+    )
+    # Add motif names
+    diff_out_act[[1]][["Motif"]] <- unlist(
+      lapply(
+        diff_out_act[[1]][["GENE"]],
+        function(x) {
+          name(TFBSTools::getMatrixByID(JASPAR2020, ID = x))
+        }
+      )
+    )
+    diff_out_act[[1]][["ID"]] <- diff_out_act[[1]][["GENE"]]
+    diff_out_act[[1]][["set"]] <- names(d2)[[x]]
+    diff_out_act[[1]] <- diff_out_act[[1]][, -3]
+    # Format output
+    diff_out_act[[1]] <- dplyr::select(
+      diff_out_act[[1]],
+      CellType, Comparison, Motif, ID, set,
+      everything()
+    )
+    return(diff_out_act)
+  }
+), names(d2))
+
+d2_diff2_res <- lapply(
+  seq.int(1, length(d2_diff2[[1]]), 1),
+  function(x) {
+    # Combine DA results, missing tests, errors
+    d <- dplyr::bind_rows(
+      lapply(
+        seq.int(1, length(d2_diff2), 1),
+        function(y) {
+          d2_diff2[[y]][[x]]
+        }
+      )
+    )
+    write.table(
+      d,
+      file = paste(
+        "analysis/t_re_alveolar_diff_activity_",
+        names(d2_diff2[[1]])[[x]],
+        ".txt",
+        sep = ""
+      ),
+      sep = "\t",
+      col.names = TRUE,
+      row.names = FALSE
+    )
+    return(d)
+  }
+)[[1]]
+```
+### Visualize DGEA and DA results: volcano plots, heatmaps, gene expression UMAPs, and violin plots (reclustered cell types)
+```{r dgea, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+lp2 <- data.frame(
+  "Set" = c(
+    "alveolar", "basal", "epithelial", "immune_all",
+    "immune_macmon", "immune_nk", "secretory"
+  ),
+  "DGEA" = c(
+    "analysis/DGEA/1_recluster/t_dgea_re_alveolar_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_basal_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_epi_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_immune_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_immune_macmon_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_immune_nktb_D.results.txt",
+    "analysis/DGEA/1_recluster/t_dgea_re_secretory_D.results.txt"
+  ),
+  "DA" = c(
+    "analysis/DA/1_recluster/t_re_alveolar_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_basal_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_epi_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_immune_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_immune_macmon_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_immune_nktb_diff_activity_D.results.txt",
+    "analysis/DA/1_recluster/t_re_secretory_diff_activity_D.results.txt"
+  )
+)
+
+#---- Volcano Plots for All DGEA/DA Subsets ----
+parallel::mclapply(
+  mc.cores = 2,
+  seq.int(1, nrow(lp2), 1),
+  function(x) {
+    # DGEA
+    d1 <- read.table(
+      lp2[x, "DGEA"],
+      header = TRUE,
+      sep = "\t"
+    )
+    lapply(
+      seq.int(1, length(unique(d1[["CellType"]])), 1),
+      function(y) {
+        tryCatch(
+          {
+            # x and y axis limits
+            d1p <- d1[d1[["CellType"]] == y, ]
+            limx <- ceiling(max(abs(d1p[["log2FC"]])))
+            limy <- ceiling(max(-log10(d1p[["H.qval"]])))
+            # Plot
+            sc_visualize(
+              ptype = "vol_std",
+              p_params = list(
+                "obj_list" = d1p,
+                "file" = paste(
+                  lp2[x, "Set"], "/",
+                  "volcano/",
+                  "vol_re_dgea_", lp2[x, "Set"],
+                  "_clus", y, "_noncfvscf",
+                  sep = ""
+                ),
+                "title" = paste(
+                  "Reclustered",
+                  lp2[x, "Set"],
+                  "NonCF vs. CF DGEA: Cluster",
+                  y
+                ),
+                "axis_lab" = paste(
+                  "Higher Exp. in CF",
+                  "<----->",
+                  "Higher Exp. in NonCF",
+                  sep = " "
+                ),
+                "var_lab" = "GENE",
+                "var_meas" = "log2FC",
+                "var_sig" = "H.qval",
+                "limx" = (limx + 1),
+                "limy" = (limy + 5),
+                "opt" = list(
+                  0.05, 0.25, 10, 10, 300
+                )
+              )
+            )
+            msg1 <- paste(
+              "Plot generation for DGEA",
+              lp2[x, "Set"], "Cluster", y, "Successful!"
+            )
+            return(msg1)
+          },
+          error = function(e) {
+            print("No values for DGEA selection, skipping to next plot...")
+          }
+        )
+      }
+    )
+    # DA
+    d1 <- read.table(
+      lp2[x, "DA"],
+      header = TRUE,
+      sep = "\t"
+    )
+    lapply(
+      seq.int(1, length(unique(d1[["CellType"]])), 1),
+      function(y) {
+        tryCatch(
+          {
+            # x and y axis limits
+            d1p <- d1[d1[["CellType"]] == y, ]
+            limx <- ceiling(max(abs(d1p[["log2FC"]])))
+            limy <- ceiling(max(-log10(d1p[["H.qval"]])))
+            # Plot
+            sc_visualize(
+              ptype = "vol_std",
+              p_params = list(
+                "obj_list" = d1p,
+                "file" = paste(
+                  lp2[x, "Set"], "/",
+                  "volcano/",
+                  "vol_re_da_", lp2[x, "Set"],
+                  "_clus", y, "_noncfvscf",
+                  sep = ""
+                ),
+                "title" = paste(
+                  "Reclustered",
+                  lp2[x, "Set"],
+                  "NonCF vs. CF DA: Cluster",
+                  y
+                ),
+                "axis_lab" = paste(
+                  "Higher Activity in CF",
+                  "<----->",
+                  "Higher Activity in NonCF",
+                  sep = " "
+                ),
+                "var_lab" = "Motif",
+                "var_meas" = "log2FC",
+                "var_sig" = "H.qval",
+                "limx" = (limx + 1),
+                "limy" = (limy + 5),
+                "opt" = list(
+                  0.05, 0.25, 10, 10, 300
+                )
+              )
+            )
+            msg1 <- paste(
+              "Plot generation for DA",
+              lp2[x, "Set"], "Cluster", y, "Successful!"
+            )
+            return(msg1)
+          },
+          error = function(e) {
+            print("No values for DA selection, skipping to next plot...")
+          }
+        )
+      }
+    )
+  }
+)
+
+# Heatmaps
+# Accessibility Score UMAPs
+## Create motif list from DA analysis result
+da_list <- d2_diff2_res[d2_diff2_res[["H.qval"]] < 0.05, c("ID", "Motif")]
+da_list <- da_list[!duplicated(da_list[["Motif"]]), ]
+sc_visualize(
+  ptype = "umap_atac_list",
+  p_params = list(
+    "obj_list" = d2,
+    "asy" = "chromvar",
+    "var" = "recluster",
+    "lg" = da_list,
+    "cores" = 12,
+    "col" = col_umap2
+  )
+)
+
+tf_heatmap <- sc_top_motif_heatmap(
+  # Seurat object
+  so = d,
+  # Differential activity results
+  mot_m = diff_out_act,
+  # Filter based on CellType?
+  filt_ct = TRUE,
+  # Cell type name
+  ct_name = "11.Secretory",
+  # Clustering column
+  cl_var = "CellType",
+  # Number of motifs to use
+  top_n = 50,
+  # Heatmap width
+  h_w = 36,
+  # Heatmap height
+  h_h = 12,
+  # Column font size
+  fs_c = 6,
+  # Row font size
+  fs_r = 8
+)
+
+png(
+  "analysis/plot.heatmap.motif.Top50.11.Secretory.png",
+  width = 40,
+  height = 14,
+  units = "cm",
+  res = 1000
+)
+print(tf_heatmap)
+dev.off()
+
+#---- Marker Gene and TF Motif Heatmaps (with clustering) ----
+## Top 25 Motif Heatmap
+da2 <- read.table(
+  "analysis/tables/table.da.tf.celltype.saevslae.txt",
+  header = TRUE,
+  sep = "\t"
+)
+head(da2)
+tf_heatmap <- sc_top_motif_heatmap(
+  # Seurat object
+  so = d,
+  # Differential activity results
+  mot_m = da2,
+  # Filter based on CellType?
+  filt_ct = FALSE,
+  # Cell type name
+  ct_name = "7.Basal",
+  # Clustering column
+  cl_var = "CellType",
+  # Number of motifs to use (only if filt_ct = FALSE)
+  top_n = 10,
+  # Heatmap width
+  h_w = 30,
+  # Heatmap height
+  h_h = 12,
+  # Column font size
+  fs_c = 6,
+  # Row font size
+  fs_r = 8
+)
+
+png(
+  "analysis/plot.heatmap.motif.top10.airway_split.png",
+  width = 40,
+  height = 20,
+  units = "cm",
+  res = 1000
+)
+print(h_out)
+dev.off()
+
+lapply(
+  seq.int(1, length(unique(da2[["cluster"]])[14]), 1),
+  function(x) {
+    tf_heatmap <- sc_top_motif_heatmap(
+      # Seurat object
+      so = d,
+      # Differential activity results
+      mot_m = da2,
+      # Filter based on CellType?
+      filt_ct = TRUE,
+      # Cell type name
+      ct_name = unique(da2[["cluster"]])[14][[x]],
+      # Clustering column
+      cl_var = "CellType",
+      # Number of motifs to use (only if filt_ct = FALSE)
+      top_n = 50,
+      # Heatmap width
+      h_w = 30,
+      # Heatmap height
+      h_h = 12,
+      # Column font size
+      fs_c = 6,
+      # Row font size
+      fs_r = 8
+    )
+
+    png(
+      paste(
+        "analysis/plot.heatmap.motif.",
+        unique(da2[["cluster"]])[14][[x]],
+        ".png",
+        sep = ""
+      ),
+      width = 34,
+      height = 14,
+      units = "cm",
+      res = 1000
+    )
+    print(tf_heatmap)
+    dev.off()
+  }
+)
+
+# Top-10 Marker Gene Heatmap
+p_heatmap_top10 <- sc_top10_marker_heatmap(
+  # Seurat object
+  d,
+  # Assay to use
+  "RNA",
+  # Cluster column
+  "CellType",
+  # Heatmap width
+  36,
+  # Heatmap height
+  12,
+  # Column fontsize
+  4,
+  # Row fontsize
+  8,
+  # Cluster columns
+  TRUE,
+  # Cluster rows
+  TRUE
+)
+png(
+  "analysis/plot.heatmap.genes.Top10.png",
+  width = 42,
+  height = 18,
+  units = "cm",
+  res = 1000
+)
+print(p_heatmap_top10)
+dev.off()
+
+#---- SAE vs. LAE activity by cluster ----
+## Activity by Cell Type
+Seurat::Idents(d) <- "CellType"
+Seurat::DefaultAssay(d) <- "chromvar"
+diff_activity1 <- Seurat::FindAllMarkers(
+  d,
+  min.pct = 0.05,
+  verbose = TRUE,
+  test.use = "MAST",
+  mean.fxn = rowMeans,
+  fc.name = "avg_diff",
+  latent.vars = "Group"
+)
+diff_activity3 <- diff_activity1
+diff_activity3[["gene"]] <- unlist(
+  lapply(
+    row.names(diff_activity3),
+    function(x) {
+      name(TFBSTools::getMatrixByID(JASPAR2020, ID = x))
+    }
+  )
+)
+diff_activity3[["ID"]] <- rownames(diff_activity3)
+head(diff_activity3)
+write.table(
+  diff_activity3,
+  file = "analysis/table.da.celltype.nonvscf.txt",
+  sep = "\t",
+  col.names = TRUE,
+  row.names = FALSE
+)
+
+# Heatmap
+### Subset seurat and scale
+hd <- reshape2::dcast(
+  diff_activity3[, c("avg_diff", "cluster", "gene")],
+  cluster ~ gene,
+  value.var = "avg_diff"
+)
+head(hd)
+hp <- reshape2::dcast(
+  diff_activity3[, c("p_val_adj", "cluster", "gene")],
+  cluster ~ gene,
+  value.var = "p_val_adj"
+)
+head(hp)
+
+hd_in <- as.matrix(hd[, 2:ncol(hd)])
+rownames(hd_in) <- hd[[1]]
+hd_in[is.na(hd_in)] <- max(hd_in[!is.na(hd_in)])
+hd_in
+hp_in <- as.matrix(hp[, 2:ncol(hp)])
+rownames(hp_in) <- hp[[1]]
+hp_in[is.na(hp_in)] <- min(hp_in[!is.na(hp_in)])
+hp_in
+
+qs <- quantile(
+  hd_in,
+  probs = c(
+    0.05,
+    0.95
+  ),
+  na.rm = TRUE
+)
+qs
+
+fun_hm_col <- circlize::colorRamp2(
+  c(
+    qs[[1]],
+    (qs[[1]]) / 2,
+    (qs[[2]]) / 2,
+    qs[[2]]
+  ),
+  colors = c(
+    col_grad()[[1]],
+    col_grad()[[3]],
+    "grey",
+    col_grad()[[12]]
+  )
+)
+
+# Create Plot
+h_out <- ComplexHeatmap::Heatmap(
+  hd_in,
+  # p-value filter
+  layer_fun = function(j, i, x, y, w, h, fill) {
+    # map positions of fold change matrix cells onto pvalue heatmap
+    p_pos <- ComplexHeatmap::pindex(hp_in, i, j)
+    # filter non-significant p values to fill in blanks
+    p_blank <- p_pos > 0.05
+    # create matrix for subsetting the heatmap to display only significant cells
+    p <- ComplexHeatmap::restore_matrix(j, i, x, y)
+    # mask non-significant genes
+    grid::grid.rect(
+      x[p_blank],
+      y[p_blank],
+      w,
+      h,
+      gp = grid::gpar(col = "white")
+    )
+  },
+  col = fun_hm_col,
+  name = "Activity Score",
+  show_column_names = FALSE,
+  show_row_names = TRUE,
+  heatmap_width = ggplot2::unit(36, "cm"),
+  heatmap_height = ggplot2::unit(10, "cm"),
+  row_names_side = "left",
+  row_names_gp = grid::gpar(fontsize = 8),
+  cluster_columns = TRUE,
+  cluster_rows = TRUE
+)
+
+png(
+  "analysis/plot.heatmap.motif.da.saevslae.png",
+  width = 40,
+  height = 12,
+  units = "cm",
+  res = 1000
+)
+print(h_out)
+dev.off()
+
+```
+## Coverage Plots
+```{r umap, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Coverage Plots ----
+levels(d@meta.data[["CellType"]])
+gc(reset = TRUE)
+dref1 <- readRDS("ref/ref.gene.formatted.rds")
+# Make plots for AT cells then upload
+## Create plots for genes of interest
+d
+lapply(
+  seq.int(1, length(ltf1), 1),
+  function(x) {
+    tryCatch(
+      {
+        ggplot2::ggsave(
+          paste(
+            "analysis/Coverage Plots/",
+            "plot_coverage_",
+            ltf1[[x]],
+            "_byGroup_alveolar.png",
+            sep = ""
+          ),
+          sc_coverage_plot(
+            so = d,
+            g_name = ltf1[[x]],
+            ct_col = "CellType",
+            md_list1 = c("Group"),
+            p_type = "ct_only",
+            asy2 = "SCT",
+            asy_dat = "scale.data",
+            ct_sel = "AT1|AT2",
+            ct_filt = TRUE
+          ),
+          width = 12,
+          height = 9,
+          dpi = 300
+        )
+        return(
+          paste(
+            "plot created for ", ltf1[[x]], "!",
+            sep = ""
+          )
+        )
+      },
+      error = function(e) {
+        paste(
+          "plot generation for", ltf1[[x]], "unsuccessful...",
+          sep = " "
+        )
+      }
+    )
+  }
+)
+
+# Individual
+ggplot2::ggsave(
+  "analysis/plot_coverage_Hiro_CF_SCGB3A2.png",
+  sc_coverage_plot(
+    so = d,
+    asy2 = "SCT",
+    asy_dat = "data",
+    g_name = "chr5-147878111-147882291",
+    f_name = "SCGB3A2",
+    g_region = "chr5-147878111-147882291",
+    ct_col = "CellType",
+    ct_filt = TRUE,
+    ct_sel = "Sec|Bas",
+    md_list1 = c("Group"),
+    p_type = "gn_ct",
+    bp_window = c(2000, 2000)
+  ),
+  width = 12,
+  height = 9,
+  dpi = 500
+)
+```
+
+## Dot Plots
+```{r umap, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+# IRF1&2, STAT1, and NFKB genes
+dot1 <- sc_dotplot( # nolint
+  p_type = "cstm",
+  l_gene = ltf1,
+  so = d,
+  asy1 = "chromvar",
+  ct_var = "CellType",
+  split_var = TRUE,
+  list_var = "Group",
+  col1 = col_dotp2
+)
+ggplot2::ggsave(
+  "analysis/Dot Plots/p_dot_IRF_NFKB_all_celltypes_nonCFvsCF.png",
+  dot1$Plot,
+  width = 16,
+  height = 10,
+  dpi = 300
+)
+# Top Differentially Active TFs in reclustered subsets
+dot1 <- sc_dotplot( # nolint
+  p_type = "threshold",
+  topn = 25,
+  l_gene = diff_out_act[[1]],
+  filt_var = "H.pval",
+  so = d,
+  ct_filt = TRUE,
+  ct = "16.Sec",
+  asy1 = "chromvar",
+  ct_var = "CellType",
+  split_var = TRUE,
+  list_var = "Group",
+  col1 = col_dotp2
+)
+```
+
+## Gene Ontology/Custom Gene Set Enrichment Analysis **(Development)**
+```{r go-enrich, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+# Run function (results are saved in 'analysis/' folder)
+enr <- sc_enrichment(
+  # Data frame containing DGEA results (created from sc.DGEA)
+  l_deg = readRDS("analysis/object.dgea.result.rds")[[1]],
+  # Enrichment type (Either "GO" or "cstm")
+  en_type = "cstm",
+  # If enrichment type is 'cstm', provide a custom gene
+  # set list (ignored when performing GO enrichment)
+  cstm_list = setNames(
+    read.table(
+      "ref/gene.list.lipids.txt",
+      header = TRUE,
+      sep = "\t"
+    ),
+    c("GENE", "Set")
+  ),
+  # run in parallel? (Set to FALSE if on Windows)
+  parl = TRUE,
+  # core percentage to use
+  core_perc = 0.75
+)
+
+# Custom gene set example
+sc_plot_enrichment(
+  enr[["Results"]][enr[["Results"]][["CellType"]] == "ct1", ],
+  "cstm"
+)
+# Gene ontology example
+sc_plot_enrichment(
+  enr[enr[["Description"]] == "GO_BP_4.Secretory", ],
+  "GO"
+)
+```
+
+## CellChat Analysis
+```{r umap, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Cell Chat ----
+# Install CellChat library and dependencies
+# (one-time only with periodic updates)
+## Dependencies
+install.packages("NMF")
+### Ensure that circlize, ComplexHeatmap, and python umap-learn
+### are all installed prior to installing CellChat
+## CellChat lib
+devtools::install_github("jinworks/CellChat")
+# MUST activate a valid conda environment with umap-learn installed
+# prior to running CellChat
+gc(reset = TRUE)
+ccmerge <- sc_cc_run(
+  so = d,
+  asy1 = "SCT",
+  g_name = "Group",
+  s_name = "Code",
+  ct_col = "CellType"
+)
+dcc_l <- list(
+  "NonCF" = ccmerge[[1]],
+  "CF" = ccmerge[[2]]
+)
+# Format as data frame and merge
+ccm <- list(
+  "LR" = dplyr::bind_rows(
+    lapply(
+      seq.int(1, length(dcc_l), 1),
+      function(x) {
+        d1 <- CellChat::subsetCommunication(
+          dcc_l[[x]],
+          # Switch to "netP" for pathways
+          slot.name = "net"
+        )
+        d1[["Group"]] <- rep(names(dcc_l)[[x]], nrow(d1))
+        return(d1)
+      }
+    )
+  ),
+  "PW" = dplyr::bind_rows(
+    lapply(
+      seq.int(1, length(dcc_l), 1),
+      function(x) {
+        d1 <- CellChat::subsetCommunication(
+          dcc_l[[x]],
+          # Switch to "netP" for pathways
+          slot.name = "netP"
+        )
+        d1[["Group"]] <- rep(names(dcc_l)[[x]], nrow(d1))
+        return(d1)
+      }
+    )
+  )
+)
+saveRDS(ccm, "analysis/CellChat/CellChat_all_celltypes.rds")
+write.table(
+  ccm[[1]],
+  "analysis/CellChat/CellChat_all_celltypes_LigandReceptor.txt",
+  sep = "\t",
+  col.names = TRUE,
+  row.names = FALSE
+)
+write.table(
+  ccm[[2]],
+  "analysis/CellChat/CellChat_all_celltypes_Pathway.txt",
+  sep = "\t",
+  col.names = TRUE,
+  row.names = FALSE
+)
+# Chord diagrams
+ccm <- readRDS("analysis/CellChat/CellChat_all_celltypes.rds")
+head(ccm[[1]])
+levels(ccm[[1]][["source"]])
+sc_cc_chrd(
+  ccdf = ccm[[1]],
+  title1 = "p_cellchat_ligandreceptor_epi_immune",
+  title2 = "L-R Interactions: Epithelial and Immune Cells, CF vs. NonCF",
+  cc_type = "comp",
+  col_g = "Group",
+  sel_src = c(
+    "3.Classical monocytes", "4.Multiciliated", "5.Secretory",
+    "7.NK cells", "8.Alveolar macrophages", "10.DC2",
+    "14.Basal resting", "16.Secretory", "17.B cells",
+    "22.Multiciliated", "24.Rare"
+  ),
+  sel_tar = c(
+    "3.Classical monocytes", "4.Multiciliated", "5.Secretory",
+    "7.NK cells", "8.Alveolar macrophages", "10.DC2",
+    "14.Basal resting", "16.Secretory", "17.B cells",
+    "22.Multiciliated", "24.Rare"
+  ),
+  spl_pw = FALSE,
+  pw = 18,
+  ph = 18,
+  fs1 = 0.6,
+  fd1 = 1.8
+)
+sc_cc_chrd(
+  ccdf = ccm[[1]],
+  title1 = "p_cellchat_ligandreceptor_secretory",
+  title2 = "L-R Interactions: Secretory Cells, CF vs. NonCF",
+  cc_type = "comp",
+  col_g = "Group",
+  sel_tar = c(
+    "5.Secretory", "16.Secretory"
+  ),
+  spl_pw = FALSE,
+  pw = 18,
+  ph = 18,
+  fs1 = 0.3,
+  fd1 = 1.8
+)
+```
+
+## Miscellaneous Figure Requests
+```{r umap, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- IDO1 Violin Plots ----
+# For all clusters
+names(d@meta.data)
+unique(d@meta.data[["CellType"]])
+d
+
+p_vio <- sc_vio_panel_gene(
+  so = d,
+  md_vars = c("CellType", "Group"),
+  g_name = "IDO1"
+)
+
+ggplot2::ggsave(
+  "analysis/20250130_plot_vio_IDO1_all_clusters.png",
+  p_vio,
+  height = 12,
+  width = 14,
+  dpi = 900
+)
+# For secretory recluster
+d_re <- readRDS("analysis/recluster/recluster.secretory.subset.data.RDS")
+names(d_re@meta.data)
+p_vio2 <- sc_vio_panel_gene(
+  so = d_re,
+  md_vars = c("recluster", "Group"),
+  g_name = "IDO1"
+)
+ggplot2::ggsave(
+  "analysis/20250130_plot_vio_IDO1_secretory_recluster.png",
+  p_vio2,
+  height = 12,
+  width = 14,
+  dpi = 900
+)
+```
