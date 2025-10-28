@@ -46,7 +46,7 @@ sc_integrate_data <- function( # nolint
               Seurat::DefaultAssay(d1) <- "SCT"
               d1 <- Seurat::RunPCA(d1)
               Seurat::DefaultAssay(d1) <- "peaks"
-              return(d1)
+              return(d1) # nolint
             }
           ),
           names(ld_int)
@@ -83,7 +83,7 @@ sc_integrate_data <- function( # nolint
                 annotation = l_par[["ref.gtf"]]
               )
               Seurat::DefaultAssay(d1) <- "ufy.peaks"
-              return(d1)
+              return(d1) # nolint
             }
           ),
           names(ld_int)
@@ -116,7 +116,7 @@ sc_integrate_data <- function( # nolint
                 dims.list = list(1:50, 2:50)
               )
               Seurat::DefaultAssay(d1) <- "ufy.peaks"
-              return(d1)
+              return(d1) # nolint
             }
           ),
           names(ld_int)
@@ -399,7 +399,7 @@ sc_integrate_data <- function( # nolint
             anchorset = d_anchor,
             dims = 1:50
           )
-          return(d_merged)
+          return(d_merged) # nolint
         }
         if(length(l_so) <= 12 & length(l_so) > 9) { # nolint
           print(
@@ -573,7 +573,7 @@ sc_integrate_data <- function( # nolint
           anchorset = d_anchor,
           dims = 1:50
         )
-        return(d_merged)
+        return(d_merged) # nolint
       }
 
       if(length(l_so) <= 12 && length(l_so) > 9) { # nolint
@@ -729,7 +729,7 @@ sc_integrate_data <- function( # nolint
       }
     }
     remove(l_so)
-    return(d_integrated)
+    return(d_integrated) # nolint
   }
 }
 
@@ -812,5 +812,5 @@ sc_integration_qc <- function(
     nrow = 1,
     ncol = 3
   )
-  return(p_qc)
+  return(p_qc) # nolint
 }

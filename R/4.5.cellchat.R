@@ -78,7 +78,7 @@ sc_cc_run <- function(
         # Calculate aggregated cc communication network
         cc1 <- CellChat::aggregateNet(cc1)
         options(future.globals.maxSize = 500 * 1024^2)
-        return(cc1)
+        return(cc1) # nolint
       }
     ),
     unique(dcc@meta.data[[g_name]])

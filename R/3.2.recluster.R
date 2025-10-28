@@ -71,7 +71,7 @@ sc_recluster <- function(
   cl_c = FALSE,
   cl_r = FALSE,
   rot_c = 45,
-  col1
+  col1 = col_grad(scm = 3)
 ) {
   # Load objects
   d <- so
@@ -92,13 +92,6 @@ sc_recluster <- function(
       so = d,
       md_list = c(md_list, ct_col),
       red1 = "pca"
-    )
-    ggplot2::ggsave(
-      paste("analysis/recluster/recluster", title1, "pca.panel.png", sep = "."),
-      d_pca,
-      width = 42,
-      height = 12,
-      dpi = 700
     )
     ## Run Harmony if batch effect exists
     if(batch_cor == TRUE) { # nolint
@@ -164,30 +157,20 @@ sc_recluster <- function(
       c(ct_col, md_list, "recluster"),
       "umap"
     )
-    ggplot2::ggsave(
-      paste(
-        "analysis/recluster/recluster",
-        title1,
-        "umap.panel.png",
-        sep = "."
+    ## Reclustering Performance
+    d1qc_pre <- Seurat::VlnPlot(
+      object = d,
+      features = c(
+        "nFeature_RNA",
+        "nCount_RNA",
+        "percent.mt",
+        "nCount_ATAC",
+        "TSS.enrichment",
+        "nucleosome_signal"
       ),
-      d_umap1,
-      height = 16,
-      width = 32,
-      dpi = 400
-    )
-    # Reclustering QC
-    ggplot2::ggsave(
-      paste(
-        "analysis/recluster/recluster",
-        title1,
-        "qc.panel.png",
-        sep = "."
-      ),
-      sc_integration_qc(d, "recluster"), # nolint
-      width = 24,
-      height = 8,
-      dpi = 700
+      layer = "counts",
+      ncol = 4,
+      pt.size = 0.2
     )
 
     # Marker gene heatmap
@@ -206,22 +189,6 @@ sc_recluster <- function(
       rot_c = rot_c,
       col1 = col1
     )
-    ## Save
-    png(
-      paste(
-        "analysis/recluster/recluster",
-        title1,
-        "hmap.top10mark.png",
-        sep = "."
-      ),
-      width = 42,
-      height = 20,
-      units = "cm",
-      res = 1800
-    )
-    print(d_hmap)
-    dev.off()
-
     # Cluster Proportions
     fun_predict_prop <- function(
       x,
@@ -249,41 +216,18 @@ sc_recluster <- function(
           data_pred_prop$`Total Cells`,
         digits = 3
       )
-      return(data_pred_prop)
+      return(data_pred_prop) # nolint
     }
     d <- SeuratObject::AddMetaData(
       d,
       gsub("_.*", "", d@meta.data[["Code"]]),
       col.name = "Code1"
     )
-    write.table(
-      fun_predict_prop(
-        d@meta.data,
-        "recluster",
-        c(prop_list)
-      ),
-      paste(
-        "analysis/recluster/recluster",
-        title1,
-        "table.proportions.txt",
-        sep = "."
-      ),
-      sep = "\t",
-      row.names = FALSE,
-      col.names = TRUE
+    cnt_prop <- fun_predict_prop(
+      d@meta.data,
+      "recluster",
+      c(prop_list)
     )
-
-    ## Save RDS
-    saveRDS(
-      d,
-      paste(
-        "analysis/recluster/recluster",
-        title1,
-        "subset.data.RDS",
-        sep = "."
-      ),
-    )
-
   }
   if(rc_type == "Mult") { # nolint
     # Re-run SCTransform and batch correct GEX data;
@@ -302,21 +246,9 @@ sc_recluster <- function(
     d_umap1 <- sc_umap_panel( # nolint
       d,
       c(
-        ctn, md_list
+        ctn, c("Code", "Airway", "Batch")
       ),
       "wnn.umap"
-    )
-    ggplot2::ggsave(
-      paste(
-        "analysis/p_umap_re",
-        title1,
-        "pre.png",
-        sep = "_"
-      ),
-      d_umap1,
-      height = 16,
-      width = 32,
-      dpi = 400
     )
     options(future.globals.maxSize = 10000 * 1024 ^ 2)
     d <- Seurat::FindVariableFeatures(
@@ -350,18 +282,6 @@ sc_recluster <- function(
       d,
       c(ctn, md_list),
       "pca_cor"
-    )
-    ggplot2::ggsave(
-      paste(
-        "analysis/p_pca_re",
-        title1,
-        "gex.png",
-        sep = "_"
-      ),
-      d_pca,
-      width = 42,
-      height = 12,
-      dpi = 700
     )
     ## WNN
     d <- Seurat::FindMultiModalNeighbors(
@@ -409,18 +329,6 @@ sc_recluster <- function(
       ),
       "re_wnn_umap"
     )
-    ggplot2::ggsave(
-      paste(
-        "analysis/p_umap_re",
-        title1,
-        "wnn.png",
-        sep = "_"
-      ),
-      d_umap1,
-      height = 12,
-      width = 24,
-      dpi = 600
-    )
     ## Reclustering Performance
     d1qc_pre <- Seurat::VlnPlot(
       object = d,
@@ -435,18 +343,6 @@ sc_recluster <- function(
       layer = "counts",
       ncol = 4,
       pt.size = 0.2
-    )
-    ggplot2::ggsave(
-      paste(
-        "analysis/p_vio_re",
-        title1,
-        "qc.png",
-        sep = "_"
-      ),
-      d1qc_pre,
-      width = 24,
-      height = 8,
-      dpi = 800
     )
     # Marker gene heatmap
     d_hmap <- sc_top10_marker_heatmap_rc( # nolint
@@ -464,22 +360,6 @@ sc_recluster <- function(
       rot_c = rot_c,
       col1 = col1
     )
-    ## Save
-    png(
-      paste(
-        "analysis/p_hmap_re",
-        title1,
-        "markers.png",
-        sep = "_"
-      ),
-      width = (h_w + 4),
-      height = (h_h + 2),
-      units = "cm",
-      res = 1800
-    )
-    print(d_hmap)
-    dev.off()
-
     # Cluster Proportions
     fun_predict_prop <- function(
       x,
@@ -507,7 +387,7 @@ sc_recluster <- function(
           data_pred_prop$`Total Cells`,
         digits = 3
       )
-      return(data_pred_prop)
+      return(data_pred_prop) # nolint
     }
     if(is.null(d@meta.data[["Code"]])) { # nolint
       d <- SeuratObject::AddMetaData(
@@ -516,21 +396,10 @@ sc_recluster <- function(
         col.name = "Code1"
       )
     }
-    write.table(
-      fun_predict_prop(
-        d@meta.data,
-        "recluster",
-        c(prop_list)
-      ),
-      paste(
-        "analysis/t_re",
-        title1,
-        "prop.txt",
-        sep = "_"
-      ),
-      sep = "\t",
-      row.names = FALSE,
-      col.names = TRUE
+    cnt_prop <- fun_predict_prop(
+      d@meta.data,
+      "recluster",
+      c(prop_list)
     )
   }
   return(
@@ -540,7 +409,9 @@ sc_recluster <- function(
       "pca_feat" = plot_var_feat,
       "pca_elbow" = plot_elbow,
       "umap_panel" = d_umap1,
-      "hmap_top10" = d_hmap
+      "hmap_top10" = d_hmap,
+      "ct_counts" = cnt_prop,
+      "qc_vio" = d1qc_pre
     )
   )
 }

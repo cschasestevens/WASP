@@ -361,3 +361,33 @@ sc_visualize <- function(
     )
   }
 }
+
+sc_panel_gex <- function(
+  so,
+  slot1 = "umap",
+  var_ct = "CellType",
+  var_md,
+  pos_leg = c(0.85, 0.25)
+) {
+  p1 <- sc_umap(
+    so = so,
+    slot1 = slot1,
+    md_var = var_md,
+    col1 = col_grad(scm = 4),
+    show_lab = FALSE,
+    pos_leg = pos_leg
+  )
+  p2 <- sc_umap(
+    so = so,
+    slot1 = slot1,
+    md_var = var_ct
+  )
+  p3 <- sc_violin(
+    so = so,
+    ct_col = var_ct,
+    gene_col = var_md
+  )
+  # Combine plots
+  p4 <- ggpubr::ggarrange(p1, p2, p3, nrow = 1, ncol = 3)
+  return(p4) # nolint
+}

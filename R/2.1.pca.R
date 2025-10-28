@@ -142,6 +142,5 @@ sc_pca_plot <- function(so, md_list, red1) { # nolint
       1
     )
   )
-
-  return(d2_out)
+  return(d2_out) # nolint
 }
