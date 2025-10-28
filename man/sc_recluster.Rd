@@ -24,7 +24,7 @@ sc_recluster(
   cl_c = FALSE,
   cl_r = FALSE,
   rot_c = 45,
-  col1
+  col1 = col_grad(scm = 3)
 )
 }
 \arguments{
