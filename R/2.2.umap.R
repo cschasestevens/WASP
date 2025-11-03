@@ -248,6 +248,8 @@ sc_umap <- function(
 #' @param so An input Seurat object.
 #' @param ct_col Cell Type column or metadata variable to plot.
 #' @param gene_col A vector of one or more genes to plot.
+#' @param grp_col Group column if splitting violin plots by
+#' an additional variable.
 #' @param pos_leg Legend position (specify x and y coordinates or type "none").
 #' @return A violin plot grouped by a specific metadata column.
 #' @import Seurat
@@ -265,6 +267,7 @@ sc_umap <- function(
 sc_violin <- function(
   so,
   ct_col = "CellType",
+  grp_col = NULL,
   gene_col,
   pos_leg = "none"
 ) {
@@ -284,135 +287,278 @@ sc_violin <- function(
       ab1
     )
   }
-  d <- Seurat::FetchData(
-    d,
-    vars = c(ct_col, ab1)
-  )
-  if (class(d[[ct_col]]) == "character") {
-    d[[ct_col]] <- factor(
-      d[[ct_col]],
-      levels = sort(unique(d[[ct_col]]))
+  if (is.null(grp_col)) {
+    d <- Seurat::FetchData(
+      d,
+      vars = c(ct_col, ab1)
     )
+    if (class(d[[ct_col]]) == "character") {
+      d[[ct_col]] <- factor(
+        d[[ct_col]],
+        levels = sort(unique(d[[ct_col]]))
+      )
+    }
+  }
+  if (!is.null(grp_col)) {
+    d <- Seurat::FetchData(
+      d,
+      vars = c(ct_col, grp_col, ab1)
+    )
+    if (class(d[[ct_col]]) == "character") {
+      d[[ct_col]] <- factor(
+        d[[ct_col]],
+        levels = sort(unique(d[[ct_col]]))
+      )
+    }
+    if (class(d[[grp_col]]) == "character") {
+      d[[grp_col]] <- factor(
+        d[[grp_col]],
+        levels = sort(unique(d[[grp_col]]))
+      )
+    }
   }
   # Plot data
-  if (length(ab1) == 1) {
-    plot_v <- ggplot2::ggplot(
-      d,
-      ggplot2::aes(
-        x = .data[[ct_col]], # nolint
-        y = .data[[ab1]],
-        fill = .data[[ct_col]]
-      )
-    ) +
-      ggplot2::scale_fill_manual(
-        name = ct_col,
-        values = col_univ()[1:length( # nolint
-          levels(d[[ct_col]])
-        )
-        ]
-      ) +
-      # Add violin plot and dotplot
-      ggplot2::geom_violin(
-        trim = TRUE
-      ) +
-      ggplot2::geom_jitter(
+  if (is.null(grp_col)) {
+    if (length(ab1) == 1) {
+      plot_v <- ggplot2::ggplot(
+        d,
         ggplot2::aes(
-          alpha = 0.2
-        ),
-        shape = 16,
-        size = 0.2,
-        position = ggplot2::position_jitter(
-          width = 0.4
-        ),
-        show.legend = FALSE
+          x = .data[[ct_col]], # nolint
+          y = .data[[ab1]],
+          fill = .data[[ct_col]]
+        )
       ) +
-      # Add Theme
-      sc_theme1() + # nolint
-      ggplot2::labs(
-        y = "GEX/ATAC"
-      ) +
-      ggplot2::theme(
-        plot.margin = ggplot2::unit(
-          c(
-            0.1,
-            0.1,
-            0.1,
-            0.1
-          ),
-          "cm"
-        ),
-        legend.position = pos_leg
-      )
-  }
-  if (length(ab1) > 1) {
-    plot_v <- setNames(lapply(
-      seq.int(1, length(ab1), 1),
-      function(i) {
-        p1 <- ggplot2::ggplot(
-          d,
-          ggplot2::aes(
-            x = .data[[ct_col]], # nolint
-            y = .data[[ab1[[i]]]],
-            fill = .data[[ct_col]]
+        ggplot2::scale_fill_manual(
+          name = ct_col,
+          values = col_univ()[1:length( # nolint
+            levels(d[[ct_col]])
           )
+          ]
         ) +
-          ggplot2::scale_fill_manual(
-            name = ct_col,
-            values = col_univ()[1:length( # nolint
-              levels(d[[ct_col]])
-            )
-            ]
-          ) +
-          # Add violin plot and dotplot
-          ggplot2::geom_violin(
-            trim = TRUE
-          ) +
-          ggplot2::geom_jitter(
+        # Add violin plot and dotplot
+        ggplot2::geom_violin(
+          trim = TRUE
+        ) +
+        ggplot2::geom_jitter(
+          ggplot2::aes(
+            alpha = 0.2
+          ),
+          shape = 16,
+          size = 0.2,
+          position = ggplot2::position_jitter(
+            width = 0.4
+          ),
+          show.legend = FALSE
+        ) +
+        # Add Theme
+        sc_theme1() + # nolint
+        ggplot2::labs(
+          y = "GEX/ATAC"
+        ) +
+        ggplot2::theme(
+          plot.margin = ggplot2::unit(
+            c(
+              0.1,
+              0.1,
+              0.1,
+              0.1
+            ),
+            "cm"
+          ),
+          legend.position = pos_leg
+        )
+    }
+    if (length(ab1) > 1) {
+      plot_v <- setNames(lapply(
+        seq.int(1, length(ab1), 1),
+        function(i) {
+          p1 <- ggplot2::ggplot(
+            d,
             ggplot2::aes(
-              alpha = 0.2
-            ),
-            shape = 16,
-            size = 0.2,
-            position = ggplot2::position_jitter(
-              width = 0.4
-            ),
-            show.legend = FALSE
+              x = .data[[ct_col]], # nolint
+              y = .data[[ab1[[i]]]],
+              fill = .data[[ct_col]]
+            )
           ) +
-          # Add Theme
-          sc_theme1() + # nolint
-          ggplot2::labs(
-            y = "GEX/ATAC"
-          ) +
-          ggplot2::theme(
-            plot.margin = ggplot2::unit(
-              c(
-                0.1,
-                0.1,
-                0.1,
-                0.1
+            ggplot2::scale_fill_manual(
+              name = ct_col,
+              values = col_univ()[1:length( # nolint
+                levels(d[[ct_col]])
+              )
+              ]
+            ) +
+            # Add violin plot and dotplot
+            ggplot2::geom_violin(
+              trim = TRUE
+            ) +
+            ggplot2::geom_jitter(
+              ggplot2::aes(
+                alpha = 0.2
               ),
-              "cm"
-            ),
-            legend.position = pos_leg
+              shape = 16,
+              size = 0.2,
+              position = ggplot2::position_jitter(
+                width = 0.4
+              ),
+              show.legend = FALSE
+            ) +
+            # Add Theme
+            sc_theme1() + # nolint
+            ggplot2::labs(
+              y = "GEX/ATAC"
+            ) +
+            ggplot2::theme(
+              plot.margin = ggplot2::unit(
+                c(
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ),
+                "cm"
+              ),
+              legend.position = pos_leg
+            )
+          return(p1) # nolint
+        }
+      ), ab1)
+      plot_v <- ggpubr::ggarrange(
+        plotlist = plot_v,
+        ncol = ifelse(
+          length(ab1) > 4,
+          4,
+          length(ab1)
+        ),
+        nrow = ifelse(
+          length(ab1) > 4,
+          ceiling(length(ab1) / 4),
+          1
+        ),
+        labels = names(plot_v),
+        common.legend = TRUE
+      )
+    }
+  }
+  if (!is.null(grp_col)) {
+    if (length(ab1) == 1) {
+      plot_v <- ggplot2::ggplot(
+        d,
+        ggplot2::aes(
+          x = .data[[ct_col]], # nolint
+          y = .data[[ab1]],
+          fill = .data[[grp_col]]
+        )
+      ) +
+        ggplot2::scale_fill_manual(
+          name = grp_col,
+          values = col_univ()[1:length( # nolint
+            levels(d[[grp_col]])
           )
-        return(p1) # nolint
-      }
-    ), ab1)
-    plot_v <- ggpubr::ggarrange(
-      plotlist = plot_v,
-      ncol = ifelse(
-        length(ab1) > 4,
-        4,
-        length(ab1)
-      ),
-      nrow = ifelse(
-        length(ab1) > 4,
-        ceiling(length(ab1) / 4),
-        1
-      ),
-      labels = names(plot_v),
-      common.legend = TRUE
-    )
+          ]
+        ) +
+        # Add violin plot and dotplot
+        ggplot2::geom_violin(
+          trim = TRUE
+        ) +
+        ggplot2::geom_jitter(
+          ggplot2::aes(
+            alpha = 0.2
+          ),
+          shape = 16,
+          size = 0.2,
+          position = ggplot2::position_jitter(
+            width = 0.4
+          ),
+          show.legend = FALSE
+        ) +
+        # Add Theme
+        sc_theme1() + # nolint
+        ggplot2::labs(
+          y = "GEX/ATAC"
+        ) +
+        ggplot2::theme(
+          plot.margin = ggplot2::unit(
+            c(
+              0.1,
+              0.1,
+              0.1,
+              0.1
+            ),
+            "cm"
+          ),
+          legend.position = pos_leg
+        )
+    }
+    if (length(ab1) > 1) {
+      plot_v <- setNames(lapply(
+        seq.int(1, length(ab1), 1),
+        function(i) {
+          p1 <- ggplot2::ggplot(
+            d,
+            ggplot2::aes(
+              x = .data[[ct_col]], # nolint
+              y = .data[[ab1[[i]]]],
+              fill = .data[[grp_col]]
+            )
+          ) +
+            ggplot2::scale_fill_manual(
+              name = grp_col,
+              values = col_univ()[1:length( # nolint
+                levels(d[[grp_col]])
+              )
+              ]
+            ) +
+            # Add violin plot and dotplot
+            ggplot2::geom_violin(
+              trim = TRUE
+            ) +
+            ggplot2::geom_jitter(
+              ggplot2::aes(
+                alpha = 0.2
+              ),
+              shape = 16,
+              size = 0.2,
+              position = ggplot2::position_jitter(
+                width = 0.4
+              ),
+              show.legend = FALSE
+            ) +
+            # Add Theme
+            sc_theme1() + # nolint
+            ggplot2::labs(
+              y = "GEX/ATAC"
+            ) +
+            ggplot2::theme(
+              plot.margin = ggplot2::unit(
+                c(
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ),
+                "cm"
+              ),
+              legend.position = pos_leg
+            )
+          return(p1) # nolint
+        }
+      ), ab1)
+      plot_v <- ggpubr::ggarrange(
+        plotlist = plot_v,
+        ncol = ifelse(
+          length(ab1) > 4,
+          4,
+          length(ab1)
+        ),
+        nrow = ifelse(
+          length(ab1) > 4,
+          ceiling(length(ab1) / 4),
+          1
+        ),
+        labels = names(plot_v),
+        common.legend = TRUE
+      )
+    }
   }
   return(plot_v) # nolint
 }

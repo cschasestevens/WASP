@@ -7,12 +7,15 @@
 sc_recluster(
   title1,
   so,
-  rc_type,
-  ct_col,
+  rc_type = "GEX",
+  ct_col = "CellType",
   ct,
   slot1 = "RNA",
+  slot2 = "ufy.peaks.corrected",
+  red = "wnn.umap",
+  sid = "Code",
   md_list,
-  prop_list,
+  prop_list = c("Group"),
   dim1 = 50,
   batch_cor = TRUE,
   cor_col,
@@ -43,6 +46,13 @@ The provided Seurat object is then subsetted to include
 only clusters from the provided group names.}
 
 \item{slot1}{Assay from Seurat object subset to use (ex. "RNA").}
+
+\item{slot2}{Secondary assay to use for reclustering
+(only if rc_type is "Mult").}
+
+\item{red}{Original dimension reduction to use for reclustering.}
+
+\item{sid}{Sample ID column.}
 
 \item{md_list}{A vector of character strings indicating metadata
 columns for overlaying on a loadings plot.}
@@ -90,15 +100,10 @@ Subsets are determined based on cell groups.
 # d_recluster <- sc_recluster(
 #   title1 = "basal",
 #   so = d_gene,
-#   rc_type = "GEX",
-#   ct_col = "CellType",
 #   ct = "Bas|Cyc|Sup",
-#   slot1 = "RNA",
 #   md_list = c("Code", "Airway", "Batch"),
 #   prop_list = c("Code", "Airway"),
-#   dim1 = 30,
-#   cor_col = c("Batch", "Code"),
-#   col1 = col_hmap
+#   cor_col = c("Batch", "Code")
 # )
 
 }

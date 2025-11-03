@@ -8,6 +8,7 @@
 #' @param title1 Heatmap title.
 #' @param filt_deg If TRUE, filters genes from a Seurat object based
 #' on differential expression in at least one group/cluster.
+#' @param l_cstm (optional) Filter data based on custom gene list.
 #' @param asy Assay to use (ex. "RNA").
 #' @param cl_var Character string containing the name
 #' of the cluster variable for cell type predictions.
@@ -35,6 +36,7 @@ sc_heatmap <- function(
   so,
   title1,
   filt_deg = TRUE,
+  l_cstm = NULL,
   asy = "sct",
   cl_var = "CellType",
   h_w = 32,
@@ -49,93 +51,111 @@ sc_heatmap <- function(
   col1 = col_grad(scm = 3) # nolint
 ) {
   d <- so
-  if (asy == "RNA" | asy == "sct") {
-    print("Calculating marker genes for each cluster...")
-    Seurat::Idents(d) <- cl_var
-    Seurat::DefaultAssay(d) <- asy
-    if(length(SeuratObject::Layers(d)) < 2) { # nolint
-      d <- Seurat::NormalizeData(d)
+  if (is.null(l_cstm)) {
+    if (asy == "RNA" || asy == "sct") {
+      print("Calculating marker genes for each cluster...")
+      Seurat::Idents(d) <- cl_var
+      Seurat::DefaultAssay(d) <- asy
+      if(length(SeuratObject::Layers(d)) < 2) { # nolint
+        d <- Seurat::NormalizeData(d)
+      }
+      cl_mark <- Seurat::FindAllMarkers(d, verbose = TRUE)
     }
-    cl_mark <- Seurat::FindAllMarkers(d, verbose = TRUE)
-  }
-  if(asy == "ATAC") { # nolint
-    print(
-      "Calculating marker motifs for each cluster..."
-    )
-    Seurat::Idents(d) <- cl_var
-    Seurat::DefaultAssay(d) <- asy
-    cl_mark <- Seurat::FindAllMarkers(
-      d,
-      min.pct = 0.05,
-      verbose = TRUE
-    )
-    names_motif <- data.frame(
-      "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-      "near.gene" = paste(
-        d@assays$ATAC@meta.features[["nearestGene"]],
-        seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-        sep = "."
-      ),
-      "motif" = paste(
-        d@assays$ATAC@meta.features[["seqnames"]],
-        paste(
-          d@assays$ATAC@meta.features[["start"]],
-          d@assays$ATAC@meta.features[["end"]],
-          sep = "-"
-        ),
-        sep = ":"
+    if(asy == "ATAC") { # nolint
+      print(
+        "Calculating marker motifs for each cluster..."
       )
-    )
-    cl_mark <- dplyr::left_join(
-      cl_mark,
-      names_motif,
-      by = "gene"
-    )
-  }
-  ## Marker gene input matrix (top10 per cell type)
-  if(class(cl_mark[["cluster"]]) == "character") { # nolint
-    cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
-  }
-  cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
-  cl_mark <- dplyr::group_by(
-    cl_mark,
-    .data[["CellType.no"]] # nolint
-  )
-  ### DEGs per cluster
-  if (filt_deg == TRUE) {
-    cl_mark <- cl_mark[cl_mark[["p_val_adj"]] < 0.05, ]
+      Seurat::Idents(d) <- cl_var
+      Seurat::DefaultAssay(d) <- asy
+      cl_mark <- Seurat::FindAllMarkers(
+        d,
+        min.pct = 0.05,
+        verbose = TRUE
+      )
+      names_motif <- data.frame(
+        "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+        "near.gene" = paste(
+          d@assays$ATAC@meta.features[["nearestGene"]],
+          seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+          sep = "."
+        ),
+        "motif" = paste(
+          d@assays$ATAC@meta.features[["seqnames"]],
+          paste(
+            d@assays$ATAC@meta.features[["start"]],
+            d@assays$ATAC@meta.features[["end"]],
+            sep = "-"
+          ),
+          sep = ":"
+        )
+      )
+      cl_mark <- dplyr::left_join(
+        cl_mark,
+        names_motif,
+        by = "gene"
+      )
+    }
+    ## Marker gene input matrix (top10 per cell type)
+    if(class(cl_mark[["cluster"]]) == "character") { # nolint
+      cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
+    }
+    cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
     cl_mark <- dplyr::group_by(
       cl_mark,
-      .data[["cluster"]] # nolint
+      .data[["CellType.no"]] # nolint
     )
-  }
-  #### Save table
-  if(asy == "RNA" | asy == "sct") { # nolint
-    write.table(
-      cl_mark,
-      paste("analysis/table_deg_", title1, ".txt", sep = ""),
-      row.names = FALSE,
-      col.names = TRUE,
-      sep = "\t"
-    )
-  }
-  if(asy == "ATAC") { # nolint
-    write.table(
-      cl_mark,
-      paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""),
-      row.names = FALSE,
-      col.names = TRUE,
-      sep = "\t"
-    )
+    ### DEGs per cluster
+    if (filt_deg == TRUE) {
+      cl_mark <- cl_mark[cl_mark[["p_val_adj"]] < 0.05, ]
+      cl_mark <- dplyr::group_by(
+        cl_mark,
+        .data[["cluster"]] # nolint
+      )
+    }
+    #### Save table
+    if(asy == "RNA" | asy == "sct") { # nolint
+      write.table(
+        cl_mark,
+        paste("analysis/table_deg_", title1, ".txt", sep = ""),
+        row.names = FALSE,
+        col.names = TRUE,
+        sep = "\t"
+      )
+    }
+    if(asy == "ATAC") { # nolint
+      write.table(
+        cl_mark,
+        paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""),
+        row.names = FALSE,
+        col.names = TRUE,
+        sep = "\t"
+      )
+    }
   }
   Seurat::DefaultAssay(d) <- asy
   ### Subset seurat and scale
-  h <- SeuratObject::FetchData(
-    d,
-    vars = c(
-      cl_var,
-      unique(cl_mark[["gene"]])
+  if (is.null(l_cstm)) {
+    h <- SeuratObject::FetchData(
+      d,
+      vars = c(
+        cl_var,
+        unique(cl_mark[["gene"]])
+      )
     )
+  }
+  if (!is.null(l_cstm)) {
+    h <- SeuratObject::FetchData(
+      d,
+      vars = c(
+        cl_var,
+        unique(l_cstm[l_cstm %in% rownames(d)])
+      )
+    )
+    head(h)
+  }
+  h[[1]] <- factor(
+    as.character(h[[1]]),
+    levels = gtools::mixedsort(unique(as.character(h[[1]])))
   )
   ### Scale and plot average expression/accessibility per cell type
   h_in <- scale(
@@ -205,7 +225,6 @@ sc_heatmap <- function(
     show_row_names = rn,
     heatmap_width = ggplot2::unit(h_w, "cm"),
     heatmap_height = ggplot2::unit(h_h, "cm"),
-    column_title = "DEGs",
     column_names_rot = rot_c,
     column_names_gp = grid::gpar(fontsize = fs_c),
     row_names_side = "left",
@@ -539,328 +558,6 @@ sc_top10_marker_heatmap_rc <- function(
   return(h_out) # nolint
 }
 
-#' Top-10 Marker Gene Heatmap
-#'
-#' Generates a heatmap from a Seurat Object and
-#' marker gene list based on the top-10 marker genes for each cluster.
-#'
-#' @param so An object of class Seurat.
-#' @param asy Assay to use (ex. "RNA").
-#' @param cl_var Character string containing the name
-#' of the cluster variable for cell type predictions.
-#' @param h_w Numeric value for heatmap width (passed to ComplexHeatmap).
-#' @param h_h Numeric value for heatmap height (passed to ComplexHeatmap).
-#' @param fs_c Numeric value for column fontsize (passed to ComplexHeatmap).
-#' @param fs_r Numeric value for row fontsize (passed to ComplexHeatmap).
-#' @param cl_c Cluster columns?
-#' @param cl_r Cluster rows?
-#' @param rot_c Rotation of column names.
-#' @param col1 Gradient color scheme to use
-#' (must be exactly 4 colors in length).
-#' @return A ComplexHeatmap object containing a top-10 marker gene heatmap.
-#' @examples
-#'
-#' # p_hmap <- sc_top10_marker_heatmap(
-#' #   so = d_recluster[["data"]],
-#' #   cl_var = "recluster"
-#' # )
-#'
-#' @export
-sc_top10_marker_heatmap <- function(
-  so,
-  title1,
-  asy = "sct",
-  cl_var = "CellType",
-  h_w = 32,
-  h_h = 20,
-  fs_c = 6,
-  fs_r = 8,
-  cl_c = FALSE,
-  cl_r = FALSE,
-  rot_c = 45,
-  col1 = col_grad(scm = 3) # nolint
-) {
-  d <- so
-  if(!file.exists(paste("analysis/table_marker_genes_", title1, ".txt", sep = ""))) { # nolint
-    if(asy == "RNA" | asy == "sct") { # nolint
-      print("Calculating marker genes for each cluster...")
-      Seurat::Idents(d) <- cl_var
-      Seurat::DefaultAssay(d) <- asy
-      if(length(SeuratObject::Layers(d)) < 2) { # nolint
-        d <- Seurat::NormalizeData(d)
-      }
-      cl_mark <- Seurat::FindAllMarkers(d, verbose = TRUE)
-      write.table(
-        cl_mark,
-        paste("analysis/table_marker_genes_", title1, ".txt", sep = ""),
-        col.names = TRUE,
-        row.names = FALSE,
-        sep = "\t"
-      )
-    }
-  }
-  if(file.exists(paste("analysis/table_marker_genes_", title1, ".txt", sep = ""))) { # nolint
-    print(paste("Loading existing marker gene set: ", "analysis/table_marker_genes_", title1, ".txt", sep = "")) # nolint
-    cl_mark <- read.table(
-      paste("analysis/table_marker_genes_", title1, ".txt", sep = ""),
-      header = TRUE,
-      sep = "\t"
-    )
-    Seurat::DefaultAssay(d) <- asy
-  }
-  if(!file.exists(paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""))) { # nolint
-    if(asy == "ATAC") { # nolint
-      print(
-        "Calculating marker motifs for each cluster..."
-      )
-      Seurat::Idents(d) <- cl_var
-      Seurat::DefaultAssay(d) <- asy
-      cl_mark <- Seurat::FindAllMarkers(
-        d,
-        min.pct = 0.05,
-        verbose = TRUE
-      )
-      names_motif <- data.frame(
-        "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-        "near.gene" = paste(
-          d@assays$ATAC@meta.features[["nearestGene"]],
-          seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-          sep = "."
-        ),
-        "motif" = paste(
-          d@assays$ATAC@meta.features[["seqnames"]],
-          paste(
-            d@assays$ATAC@meta.features[["start"]],
-            d@assays$ATAC@meta.features[["end"]],
-            sep = "-"
-          ),
-          sep = ":"
-        )
-      )
-      cl_mark <- dplyr::left_join(
-        cl_mark,
-        names_motif,
-        by = "gene"
-      )
-      write.table(
-        cl_mark,
-        paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""),
-        col.names = TRUE,
-        row.names = FALSE,
-        sep = "\t"
-      )
-    }
-  }
-  if(file.exists(paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""))) { # nolint
-    print(paste("Loading existing marker motif set: ", "analysis/table_marker_motifs_", title1, ".txt", sep = "")) # nolint
-    cl_mark <- read.table(
-      paste("analysis/table_marker_motifs_", title1, ".txt", sep = ""),
-      header = TRUE,
-      sep = "\t"
-    )
-    Seurat::DefaultAssay(d) <- asy
-  }
-  if(!file.exists(paste("analysis/table_marker_antibodies_", title1, ".txt", sep = ""))) { # nolint
-    if(asy == "PC") { # nolint
-      print("Calculating marker antibodies for each cluster...")
-      Seurat::Idents(d) <- cl_var
-      Seurat::DefaultAssay(d) <- asy
-      if(length(SeuratObject::Layers(d)) < 2) { # nolint
-        d <- Seurat::NormalizeData(d)
-      }
-      cl_mark <- Seurat::FindAllMarkers(d, verbose = TRUE)
-      write.table(
-        cl_mark,
-        paste("analysis/table_marker_antibodies_", title1, ".txt", sep = ""),
-        col.names = TRUE,
-        row.names = FALSE,
-        sep = "\t"
-      )
-    }
-  }
-  if(file.exists(paste("analysis/table_marker_antibodies_", title1, ".txt", sep = ""))) { # nolint
-    print(paste("Loading existing marker antibody set: ", "analysis/table_marker_antibodies_", title1, ".txt", sep = "")) # nolint
-    cl_mark <- read.table(
-      paste("analysis/table_marker_antibodies_", title1, ".txt", sep = ""),
-      header = TRUE,
-      sep = "\t"
-    )
-    Seurat::DefaultAssay(d) <- asy
-  }
-  ## Marker gene input matrix (top10 per cell type)
-  if(class(cl_mark[["cluster"]]) == "character") { # nolint
-    cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
-  }
-  cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
-  cl_mark <- dplyr::group_by(
-    cl_mark,
-    .data[["CellType.no"]] # nolint
-  )
-  ### Top 10 genes per cluster (by p value then by fold change)
-  cl_mark <- dplyr::slice_max(
-    cl_mark[cl_mark[["avg_log2FC"]] > 0, ],
-    order_by = -.data[["p_val_adj"]], # nolint
-    n = 25
-  )[, c(
-    "gene",
-    "cluster",
-    "avg_log2FC",
-    "p_val_adj"
-  )]
-  cl_mark <- dplyr::group_by(
-    cl_mark,
-    .data[["cluster"]] # nolint
-  )
-  cl_mark <- dplyr::slice_max(
-    cl_mark,
-    order_by = .data[["avg_log2FC"]], # nolint
-    n = 10
-  )[, c(
-    "gene",
-    "cluster"
-  )]
-  #### Save table
-  if(asy == "RNA" | asy == "sct") { # nolint
-    write.table(
-      cl_mark,
-      paste("analysis/table_marker_genes_", title1, "_top10.txt", sep = ""),
-      row.names = FALSE,
-      col.names = TRUE,
-      sep = "\t"
-    )
-  }
-  if(asy == "ATAC") { # nolint
-    write.table(
-      cl_mark,
-      paste("analysis/table_marker_motifs_", title1, "_top10.txt", sep = ""),
-      row.names = FALSE,
-      col.names = TRUE,
-      sep = "\t"
-    )
-  }
-  if(asy == "PC") { # nolint
-    write.table(
-      cl_mark,
-      paste(
-        "analysis/table_marker_antibodies_",
-        title1,
-        "_top10.txt",
-        sep = ""
-      ),
-      row.names = FALSE,
-      col.names = TRUE,
-      sep = "\t"
-    )
-  }
-  Seurat::DefaultAssay(d) <- asy
-  ### Subset seurat and scale
-  h <- SeuratObject::FetchData(
-    d,
-    vars = c(
-      cl_var,
-      unique(cl_mark[["gene"]])
-    )
-  )
-  ### Heatmap annotation (average expression)
-  h_anno <- as.data.frame(
-    lapply(
-      h[, 2:ncol(
-        h
-      )],
-      function(x) {
-        mean(x)
-      }
-    )
-  )
-  h_anno <- h_anno[, h_anno[1, ] > 0]
-  ### Scale and plot average expression/accessibility per cell type
-  h_in <- scale(
-    as.matrix(
-      magrittr::set_rownames(
-        setNames(
-          as.data.frame(
-            lapply(
-              h[, 2:ncol(
-                h
-              )],
-              function(x) {
-                dplyr::select(
-                  aggregate(
-                    x,
-                    list(
-                      h[, 1]
-                    ),
-                    FUN = mean
-                  ),
-                  c(2)
-                )
-              }
-            )
-          ),
-          names(h[, 2:ncol(h)])
-        ),
-        levels(h[, 1])
-      )
-    ),
-    center = TRUE
-  )
-  qs <- quantile(
-    h_in,
-    probs = c(
-      0.05,
-      0.95
-    ),
-    na.rm = TRUE
-  )
-  h_in <- as.matrix(
-    as.data.frame(h_in)[, unlist(
-      lapply(
-        seq.int(1, ncol(as.data.frame(h_in)), 1),
-        function(x) {
-          !anyNA(as.data.frame(h_in)[x])
-        }
-      )
-    )
-    ]
-  )
-  fun_hm_col <- circlize::colorRamp2(
-    c(
-      qs[[1]],
-      (qs[[1]]) / 2,
-      (qs[[2]]) / 2,
-      qs[[2]]
-    ),
-    colors = col1
-  )
-  # Create Plot
-  h_out <- ComplexHeatmap::Heatmap(
-    h_in,
-    col = fun_hm_col,
-    name = "Scaled Expression",
-    top_annotation = ComplexHeatmap::HeatmapAnnotation(
-      `Average.Expression` = ComplexHeatmap::anno_barplot(
-        as.vector(t(h_anno)),
-        gp = grid::gpar(fill = col1) # nolint
-      ),
-      annotation_name_gp = grid::gpar(
-        fontsize = 10
-      )
-    ),
-    show_column_names = TRUE,
-    show_row_names = TRUE,
-    heatmap_width = ggplot2::unit(h_w, "cm"),
-    heatmap_height = ggplot2::unit(h_h, "cm"),
-    column_title = "Top 10 Markers",
-    column_names_rot = rot_c,
-    column_names_gp = grid::gpar(fontsize = fs_c),
-    row_names_side = "left",
-    row_names_gp = grid::gpar(fontsize = fs_r),
-    cluster_columns = cl_c,
-    cluster_rows = cl_r,
-  )
-  return(h_out)
-}
-
 #' Top-10 DEG Heatmap
 #'
 #' Generates a heatmap from a Seurat Object and marker gene
@@ -892,21 +589,20 @@ sc_top10_marker_heatmap <- function(
 #' # )
 #'
 #' @export
-sc_top10_de_da_heatmap <- function(
+sc_heatmap_deg <- function(
   l_deg,
   so,
-  asy,
-  cl_var,
-  hm_w,
-  hm_h,
-  fs_c,
-  fs_r,
+  asy = "RNA",
+  cl_var = "CellType",
+  hm_w = 30,
+  hm_h = 15,
+  fs_c = 6,
+  fs_r = 8,
   c_name
 ) {
   d1 <- so
   SeuratObject::DefaultAssay(d1) <- asy
-  ld <- l_deg[[1]]
-
+  ld <- l_deg
   ## Return specified number of DEGs for selected comparison and cell types
   d <- dplyr::select(
     dplyr::slice_max(
@@ -922,7 +618,7 @@ sc_top10_de_da_heatmap <- function(
         )
       ),
       order_by = -.data[["H.pval"]], # nolint
-      n = 10
+      n = 1000
     ),
     c(
       "CellType",
@@ -952,7 +648,7 @@ sc_top10_de_da_heatmap <- function(
       "CellType",
       "Comparison",
       "GENE",
-      "logFC"
+      "log2FC"
     )
   )
   ## Format as matrix
@@ -965,7 +661,7 @@ sc_top10_de_da_heatmap <- function(
         sep = ""
       )
     ),
-    value.var = "logFC"
+    value.var = "log2FC"
   )
   d3[3:ncol(d3)] <- as.data.frame(
     lapply(
@@ -981,12 +677,10 @@ sc_top10_de_da_heatmap <- function(
       }
     )
   )
-  ## Row annotations
-  h_row_anno3 <- d3[["CellType"]]
   ## Input matrix
   d3 <- magrittr::set_rownames(
     as.matrix(d3[3:ncol(d3)]),
-    d3[["Comparison"]]
+    d3[["CellType"]]
   )
   ### Subset seurat and scale
   h <- SeuratObject::FetchData(
@@ -1011,25 +705,33 @@ sc_top10_de_da_heatmap <- function(
   fun_hm_col <- circlize::colorRamp2(
     c(
       min(d3), min(d3) / 2,
-      0, max(d3) / 2,
-      max(d3)
+      0,
+      max(d3) / 2, max(d3)
     ),
     colors = c(
-      col_grad()[[1]], col_grad()[[3]], # nolint
-      "white", col_grad()[[6]],
-      col_grad()[[12]]
+      "dodgerblue",
+      "lightblue",
+      "white",
+      "red",
+      "darkred"
     )
   )
   ## Output plot
   h_out <- ComplexHeatmap::Heatmap(
     d3,
     col = fun_hm_col,
-    name = "logFC",
+    name = "log2FC",
     top_annotation = ComplexHeatmap::HeatmapAnnotation(
       `Avg.Exp` = ComplexHeatmap::anno_barplot(
         as.vector(t(h_anno)),
         gp = grid::gpar(
-          fill = col_grad() # nolint
+          fill = c(
+            "dodgerblue",
+            "lightblue",
+            "white",
+            "red",
+            "darkred"
+          )
         )
       ),
       annotation_name_gp = grid::gpar(
@@ -1037,23 +739,8 @@ sc_top10_de_da_heatmap <- function(
       ),
       annotation_name_side = "left"
     ),
-    left_annotation = ComplexHeatmap::rowAnnotation(
-      "Cluster" = h_row_anno3,
-      col = list(
-        "Cluster" = setNames(
-          as.vector(
-            col_univ()[1:length( # nolint
-              unique(h_row_anno3)
-            )]
-          ),
-          c(unique(h_row_anno3))
-        )
-      ),
-      show_annotation_name = TRUE,
-      annotation_name_gp = grid::gpar(fontsize = 10)
-    ),
     show_column_names = TRUE,
-    show_row_names = FALSE,
+    show_row_names = TRUE,
     row_names_gp = grid::gpar(
       fontsize = fs_r
     ),
@@ -1064,11 +751,10 @@ sc_top10_de_da_heatmap <- function(
       hm_h, "cm"
     ),
     column_title = paste(
-      "Top 10 DEG per Cell Type",
       c_name,
       sep = ": "
     ),
-    column_names_rot = 90,
+    column_names_rot = 45,
     column_names_gp = grid::gpar(
       fontsize = fs_c
     ),

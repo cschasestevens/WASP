@@ -8,6 +8,7 @@ sc_heatmap(
   so,
   title1,
   filt_deg = TRUE,
+  l_cstm = NULL,
   asy = "sct",
   cl_var = "CellType",
   h_w = 32,
@@ -29,6 +30,8 @@ sc_heatmap(
 
 \item{filt_deg}{If TRUE, filters genes from a Seurat object based
 on differential expression in at least one group/cluster.}
+
+\item{l_cstm}{(optional) Filter data based on custom gene list.}
 
 \item{asy}{Assay to use (ex. "RNA").}
 

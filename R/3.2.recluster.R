@@ -14,6 +14,10 @@
 #' The provided Seurat object is then subsetted to include
 #' only clusters from the provided group names.
 #' @param slot1 Assay from Seurat object subset to use (ex. "RNA").
+#' @param slot2 Secondary assay to use for reclustering
+#' (only if rc_type is "Mult").
+#' @param red Original dimension reduction to use for reclustering.
+#' @param sid Sample ID column.
 #' @param md_list A vector of character strings indicating metadata
 #' columns for overlaying on a loadings plot.
 #' @param prop_list Subset of md_list to use for stratifying cell type
@@ -39,27 +43,25 @@
 #' # d_recluster <- sc_recluster(
 #' #   title1 = "basal",
 #' #   so = d_gene,
-#' #   rc_type = "GEX",
-#' #   ct_col = "CellType",
 #' #   ct = "Bas|Cyc|Sup",
-#' #   slot1 = "RNA",
 #' #   md_list = c("Code", "Airway", "Batch"),
 #' #   prop_list = c("Code", "Airway"),
-#' #   dim1 = 30,
-#' #   cor_col = c("Batch", "Code"),
-#' #   col1 = col_hmap
+#' #   cor_col = c("Batch", "Code")
 #' # )
 #'
 #' @export
 sc_recluster <- function(
   title1,
   so,
-  rc_type,
-  ct_col,
+  rc_type = "GEX",
+  ct_col = "CellType",
   ct,
   slot1 = "RNA",
+  slot2 = "ufy.peaks.corrected",
+  red = "wnn.umap",
+  sid = "Code",
   md_list,
-  prop_list,
+  prop_list = c("Group"),
   dim1 = 50,
   batch_cor = TRUE,
   cor_col,
@@ -172,7 +174,6 @@ sc_recluster <- function(
       ncol = 4,
       pt.size = 0.2
     )
-
     # Marker gene heatmap
     d_hmap <- sc_top10_marker_heatmap_rc( # nolint
       title1 = title1,
@@ -220,7 +221,7 @@ sc_recluster <- function(
     }
     d <- SeuratObject::AddMetaData(
       d,
-      gsub("_.*", "", d@meta.data[["Code"]]),
+      gsub("_.*", "", d@meta.data[[sid]]),
       col.name = "Code1"
     )
     cnt_prop <- fun_predict_prop(
@@ -234,21 +235,21 @@ sc_recluster <- function(
     # leave corrected ATAC data as-is
     # Normalization
     ## GEX
-    Seurat::DefaultAssay(d) <- slot1
+    Seurat::DefaultAssay(d3) <- slot1
     # subset
-    d <- d[
+    d <- d3[
       ,
       grepl(
-        ctf,
-        as.character(d@meta.data[[ctn]])
+        ct,
+        as.character(d3@meta.data[[ct_col]])
       )
     ]
     d_umap1 <- sc_umap_panel( # nolint
       d,
       c(
-        ctn, c("Code", "Airway", "Batch")
+        ct_col, md_list
       ),
-      "wnn.umap"
+      red
     )
     options(future.globals.maxSize = 10000 * 1024 ^ 2)
     d <- Seurat::FindVariableFeatures(
@@ -261,10 +262,11 @@ sc_recluster <- function(
       new.assay.name = "sct"
     )
     d <- Seurat::RunPCA(d)
+    names(d@meta.data)
     d <- harmony::RunHarmony(
       d,
       assay.use = "sct",
-      group.by.vars = cor_col,
+      group.by.vars = c(sid),
       reduction.use = "pca",
       reduction.save = "pca_cor",
       project.dim = FALSE
@@ -276,11 +278,11 @@ sc_recluster <- function(
     plot_elbow <- Seurat::ElbowPlot(
       d,
       reduction = "pca_cor",
-      ndims = dim1
+      ndims = 50
     )
     d_pca <- sc_pca_plot( # nolint
       d,
-      c(ctn, md_list),
+      c(ct_col, md_list),
       "pca_cor"
     )
     ## WNN
@@ -288,9 +290,9 @@ sc_recluster <- function(
       d,
       reduction.list = list(
         "pca_cor",
-        "ufy.peaks.corrected"
+        slot2
       ),
-      dims.list = list(1:dim1, 2:dim1)
+      dims.list = list(1:50, 2:50)
     )
     d <- Seurat::RunUMAP(
       d,
@@ -311,7 +313,7 @@ sc_recluster <- function(
       cluster.name = "recluster",
       algorithm = 3,
       verbose = TRUE,
-      resolution = res1
+      resolution = 0.5
     )
     d@meta.data[["recluster"]] <- factor(
       as.numeric(d@meta.data[["recluster"]]),
@@ -325,7 +327,7 @@ sc_recluster <- function(
     d_umap1 <- sc_umap_panel( # nolint
       d,
       c(
-        ctn, md_list, "recluster"
+        ct_col, md_list, "recluster"
       ),
       "re_wnn_umap"
     )
@@ -389,10 +391,10 @@ sc_recluster <- function(
       )
       return(data_pred_prop) # nolint
     }
-    if(is.null(d@meta.data[["Code"]])) { # nolint
+    if(is.null(d@meta.data[[sid]])) { # nolint
       d <- SeuratObject::AddMetaData(
         d,
-        gsub("_.*", "", d@meta.data[["Code"]]),
+        gsub("_.*", "", d@meta.data[[sid]]),
         col.name = "Code1"
       )
     }

@@ -4,12 +4,15 @@
 \alias{sc_violin}
 \title{Violin Plot}
 \usage{
-sc_violin(so, ct_col = "CellType", gene_col, pos_leg = "none")
+sc_violin(so, ct_col = "CellType", grp_col = NULL, gene_col, pos_leg = "none")
 }
 \arguments{
 \item{so}{An input Seurat object.}
 
 \item{ct_col}{Cell Type column or metadata variable to plot.}
+
+\item{grp_col}{Group column if splitting violin plots by
+an additional variable.}
 
 \item{gene_col}{A vector of one or more genes to plot.}
 

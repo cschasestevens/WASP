@@ -1,4 +1,4 @@
-# WASP v4.02 (20251028)
+# WASP v4.03 (20251103)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -27,9 +27,9 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * GenomeInfoDb,
         * Rsamtools,
         * SoupX,
-        * scDblFinder,
-        * SingleCellExperiment,
-        * SummarizedExperiment,
+        * scDblFinder (Bioconductor),
+        * SingleCellExperiment (Bioconductor),
+        * SummarizedExperiment (Bioconductor),
         * Seurat,
         * SeuratObject,
         * BiocGenerics,
@@ -100,6 +100,13 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.03
+    * Updated sc_heatmap() to accept a custom gene list in addition to the default option of calculating the top marker genes per cluster.
+    * Updated sc_recluster() function with default parameters.
+    * Fixed error in sc_recluster() function where specific reduction names were required to perform reclustering.
+    * Revised sc_diff() function for performance improvements.
+    * Added function within sc_violin() to stratify plot by a metadata variable.
+
 * 4.02
     * Added generic heatmap function
 * 4.01

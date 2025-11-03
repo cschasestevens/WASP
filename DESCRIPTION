@@ -1,15 +1,15 @@
 Package: WASP
-Date: 2025-10-28
+Date: 2025-11-03
 Type: Package
 Title: Whole Analysis of Sequencing data in Parallel (WASP)
-Version: 4.02
+Version: 4.03
 Author: Nathanial C. Stevens
 Maintainer: Nathanial C. Stevens <cschasestevens@gmail.com>
 Description: Incorporates Seurat and Signac with various R packages to perform processing and analysis of single-cell RNA-Sequencing (scRNA-Seq), single-cell ATAC-Sequencing (scATAC-Seq), or combined 10X Multiome datasets.    The functions included in this package provide a comprehensive workflow for integrating commonly used Seurat and Signac functions with advanced statistical methods and visualization.    Most analyses can be run in parallel using intuitive functions to expedite time-consuming steps such as dataset integration and differential expression analysis.    The package is compatible with Windows, Linux, or WSL2. However, analyses conducted in Windows default to sequential processing due to inherent stability issues of parallel processing in Windows.
-License: GPL-3
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Suggests: 
   knitr,

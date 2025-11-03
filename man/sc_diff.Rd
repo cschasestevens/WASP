@@ -6,15 +6,14 @@
 \usage{
 sc_diff(
   so,
-  asy = "sct",
+  asy = "SCT",
   slot1 = "scale.data",
   md_list,
   ct = "CellType",
   mast_comp,
   mast_name,
   form1,
-  parl = TRUE,
-  core_perc = 0.2,
+  cores = 1,
   atac_type = NULL
 )
 }
@@ -44,16 +43,16 @@ variable name and the leading factor level within that variable.}
 \item{mast_name}{User-defined name of a DGEA comparison,
 given as a character string.}
 
-\item{form1}{Formula to use for MAST generalized linear model.}
-
-\item{parl}{Logical indicating whether processing should be run in parallel
-(Linux and WSL2 only). Set to FALSE if running sequentially.}
-
-\item{core_perc}{Percentage of available cores to use if running
-in parallel (Linux and WSL2 only). Set to 1 if running sequentially.}
+\item{form1}{Formula to use for MAST generalized linear model. Usually
+consists of two terms, the first of which is the treatment group column
+name and the second of which is the column indicating the number of features
+present per cell.}
 
 \item{atac_type}{(optional) Character string providing the name of a cell
 type for performing differential analysis. Only used for scATAC-Seq data.}
+
+\item{core_perc}{Percentage of available cores to use if running
+in parallel (Linux and WSL2 only). Set to 1 if running sequentially.}
 }
 \value{
 A list of DGEA results per cell type for the chosen group comparison,
