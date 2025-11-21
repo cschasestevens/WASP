@@ -1,4 +1,4 @@
-# WASP v4.03 (20251103)
+# WASP v4.10 (20251121)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -100,6 +100,17 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.10
+    * Updated tutorial to v4.10
+    * Updated sc_multiome_params to enable directory selection.
+    * Added progress messages to major processing functions.
+    * Updated sc_multiome_process and sc_multiome_process_batch to be compatible with MACS3.
+    * Updated sc_integrate_data with stability improvements for multiome and scRNA-Seq data integration
+    * Removed support for Seurat versions older than 5* with sc_integrate_data.
+    * Integrated sc_umap with sc_umap_panel.
+    * Removed sc_umap_panel_gene, sc_umap_panel_gene_list, and sc_umap_standard functions, which have been superceded by sc_umap.
+    * Updated sc_violin to accept gene names or metadata column names.
+    * Fixed bug in sc_predict where wrong cell type assignments are used to label clusters.
 * 4.03
     * Updated sc_heatmap() to accept a custom gene list in addition to the default option of calculating the top marker genes per cluster.
     * Updated sc_recluster() function with default parameters.

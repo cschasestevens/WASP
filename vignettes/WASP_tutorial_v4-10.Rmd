@@ -1,0 +1,185 @@
+---
+title: "WASP_tutorial_v4-10"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{WASP_tutorial_v4-10}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Setup
+### - Ensure that a 10X CellRanger output folder containing both RNA and ATAC data is available in the working directory prior to running package functions.
+### - Also requires a valid annotation and reference genome file for mapping reads/fragments
+###   - Recommended to use files from GENCODE (works natively with sc_multiome_params())
+### - Example data are available from the 10X website.
+```{r inst, echo=T, results=T, message=F, warning=F,eval=FALSE}
+#---- Load data and session objects (if already processed and annotated) ----
+# Set working directory with setwd()
+## Change to relative working directory path on local machine
+getwd()
+setwd("/home/ncsteven/analyze/Hiro.CF.multiome/WASP_test")
+# Load libraries
+library(WASP)
+# Set parameters with sc_multiome_params (or sc_proc_params for scRNA-Seq only)
+## - data frame containing sampleID (matches CellRanger folder name)
+##   and group info
+## - path to genome annotation file
+## - path to genome reference file
+scparam <- sc_multiome_params(
+  study_md = data.frame(
+    "Code" = c("DD023T", "KK010T"),
+    "Group" = factor(c("NonCF", "CF"), levels = c("NonCF", "CF"))
+  ),
+  gtf_path = "gencode.v45.primary_assembly.annotation.gtf",
+  fa_path = "GRCh38.primary_assembly.genome.fa"
+)
+```
+
+## Data processing and Integration
+```{r data-proc, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Processing of 10X multiome files ----
+# Process example file using sc_multiome_process_batch()
+## Run ?sc_multiome_process_batch() for a full list of processing params
+## Need to install MACS3 and hdf5r in a conda environment outside of R
+## MACS3 path MUST be specified as CallPeaks will only search for older
+## MACS2 installation.
+scdata <- sc_process_multiome_batch(scparam, parl = TRUE, core_num = 2)
+gc(reset = TRUE)
+ls()
+#---- Data Integration ----
+scint <- sc_integrate_data(
+  l_so = scdata,
+  l_par = scparam,
+  proc_mode = "multiome",
+  parl = TRUE,
+  core_num = 2
+)
+#---- Integration QC ----
+## Visualize Clusters
+sc_umap_panel(
+  so = scint,
+  md_list = c("Group", "Code", "seurat_clusters"),
+  slot1 = "wnn.umap",
+  pos_leg = c(0.25, 0.85),
+  show_lab = FALSE
+)
+sc_violin(
+  so = scint,
+  ct_col = "seurat_clusters",
+  gene_col = c(
+    "nFeature_RNA",
+    "nCount_RNA",
+    "percent.mt",
+    "nCount_ATAC",
+    "TSS.enrichment",
+    "nucleosome_signal"
+  )
+)
+# Save integrated data
+saveRDS(scint, "processing/int_final.rds")
+```
+
+## CellType Prediction
+```{r cell-pred, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Azimuth Cell Type Prediction ----
+scpred <- sc_predict(
+  so = scint,
+  md_list = c("Code"),
+  f_size = 30000
+)
+# Check assignments START HERE 11/24/25
+
+# Save data
+saveRDS(scpred, "processing/anno_assigned.rds")
+```
+
+## Add Activity Scores to A Multiome Dataset
+```{r}
+# DA analysis
+ref_gene1 <- rtracklayer::import(
+  "ref/gencode.v45.primary_assembly.annotation.gtf"
+)
+unique(d@meta.data[["CellType"]])
+## Load libraries
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(chromVAR)
+library(JASPAR2020)
+## Add motifs
+d_chrmasy <- sc_atac_motifs(
+  # Seurat object
+  d,
+  # Unified peaks assay
+  "ufy.peaks",
+  # Reference gene annotation
+  ref_gene1
+)
+## Add chromassay to Seurat
+d[["TF"]] <- d_chrmasy
+Seurat::DefaultAssay(d) <- "RNA"
+Seurat::Idents(d) <- "Group"
+diff_output_tf <- Seurat::FindAllMarkers(
+  d,
+  min.pct = 0.05,
+  verbose = TRUE
+)
+d <- Signac::RegionStats(
+  d,
+  genome = BSgenome.Hsapiens.UCSC.hg38
+)
+## Motif activities
+d <- Signac::RunChromVAR(
+  object = d,
+  genome = BSgenome.Hsapiens.UCSC.hg38
+)
+Seurat::DefaultAssay(d) <- "chromvar"
+saveRDS(d, "analysis/data.annotated.TFs.rds")
+```
+
+## Analyze a Reclustered Subset of scRNA-Seq or Multiome Data
+### Reclustering w/DGEA and DA analysis
+```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+### Visualization of Reclustering: CellType and Expression UMAPs
+```{r reclus2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+### Cell Type Predictions for Reclustered Data
+```{r pred2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+## Statistical Analysis
+### Differential Gene Expression/Accessibility Analysis (reclustered cell types)
+```{r dgea, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+## Coverage Plots
+```{r covg, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+## Dot Plots
+```{r dotp, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+## Gene Ontology/Custom Gene Set Enrichment Analysis **(Development)**
+```{r go-enrich, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```
+
+## CellChat Analysis
+```{r cchat, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+
+```

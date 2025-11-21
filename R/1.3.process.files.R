@@ -13,6 +13,12 @@
 #' Run ?Seurat::CreateSeuratObject() for more details.
 #' @return A processed sample file converted into a Seurat object
 #' with a summary list of QC and processing details.
+#' @import Seurat
+#' @import BiocGenerics
+#' @import SoupX
+#' @import scDblFinder
+#' @import SingleCellExperiment
+#' @import SummarizedExperiment
 #' @examples
 #'
 #' # proc_data <- sc_process_file(
@@ -206,6 +212,7 @@ sc_process_file <- function(
 #' in parallel (Linux and WSL2 only). Set to 1 if running sequentially.
 #' @return A processed list of sample files converted into Seurat
 #' objects with a summary list of QC and processing details.
+#' @import parallel
 #' @examples
 #'
 #' # list_data <- sc_process_batch(
@@ -339,7 +346,7 @@ sc_process_batch <- function(
     df_par[["File.ID"]]
     )
   }
-  return(list_data)
+  return(list_data) # nolint
 }
 
 #' Plot Sample Contamination Fraction
@@ -350,6 +357,7 @@ sc_process_batch <- function(
 #' @param df_par Data frame of updated parameters used for data processing.
 #' @return A scatter plot indicating the individual
 #' and average contamination fractions for all samples.
+#' @import ggplot2
 #' @examples
 #'
 #' # sc_plot_rho(list_params)
@@ -421,25 +429,27 @@ sc_plot_rho <- function(
 #' potential doublets, potential artifacts, etc.
 #' @param tss_low Lower limit for TSS enrichment score. Used to filter
 #' low quality cells.
+#' @param pathmac Path to MACS3 installation. This must be specified
+#' to avoid errors in peak calling through Signac, which only supports
+#' MACS2 by default. Specifying the path manually avoids this error.
 #' @return A list containing the processed multimodal Seurat object,
 #' processing parameters, and QC plots.
+#' @import Seurat
+#' @import decontX
+#' @import SingleCellExperiment
+#' @import SeuratObject
+#' @import Signac
+#' @import GenomeInfoDb
 #' @examples
 #'
 #' # proc_d_multiome <- sc_multiome_process(
-#' #   # parameter list
-#' #   l_params,
-#' #   # sample ID
-#' #   1,
-#' #   # Project name
-#' #   "Hiro.CF.multiome",
-#' #   # Minimum cells per feature
-#' #   5,
-#' #   # Minimum features per cell
-#' #   200,
-#' #   # ATAC counts upper limit
-#' #   100000,
-#' #   # RNA counts upper limit
-#' #   25000,
+#' #   df_par = scparam,
+#' #   i = 1,
+#' #   p_name = "Hiro.CF.multiome",
+#' #   m_cell = 5,
+#' #   m_feat = 200,
+#' #   atac_high = 100000,
+#' #   rna_high = 25000,
 #' #   # RNA counts lower limit
 #' #   1000,
 #' #   # Percentage mitochondrial reads upper limit
@@ -462,7 +472,8 @@ sc_multiome_process <- function(
   rna_low,
   perc_mt,
   nsm_high,
-  tss_low
+  tss_low,
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
 ) {
   RNGkind("L'Ecuyer-CMRG")
   set.seed(1234)
@@ -470,11 +481,10 @@ sc_multiome_process <- function(
   dfp <- df_par
   df_p <- dfp[["param"]]
   d <- df_p[i, ]
-  ## IMPORTANT: run "conda deactivate" in terminal then
   ## install hdf5r package if not present on machine
-
   # Process RNA
   ## Ambient contamination removal
+  print("---- Step 1: Ambient RNA removal ----")
   d_cnt <- Seurat::Read10X_h5(d[["Path.count"]])
   d_raw <- Seurat::Read10X_h5(d[["Path.raw"]])
   d_cnt2 <- decontX::decontX(
@@ -489,8 +499,8 @@ sc_multiome_process <- function(
       )
     )
   )
-
   ## Doublet removal/Create single cell experiment
+  print("---- Step 2: Doublet removal ----")
   dx_cnt <- scDblFinder::scDblFinder(d_cnt2, clusters = TRUE)
   dx_cnt <- round(
     SummarizedExperiment::assay(
@@ -499,17 +509,17 @@ sc_multiome_process <- function(
     ),
     0
   )
-
   ## Create Seurat Object
+  print("---- Step 3: Create Seurat object from GEX data ----")
   d1 <- SeuratObject::CreateSeuratObject(
     counts = dx_cnt,
     assay = "RNA",
     project = "samp1",
-    min.cells = 5,
-    min.features = 200
+    min.cells = m_cell,
+    min.features = m_feat
   )
-
   # Process ATAC
+  print("---- Step 4: Create Seurat object from ATAC data ----")
   d1_atac <- SeuratObject::CreateSeuratObject(
     counts = d_cnt$`Peaks`,
     assay = "ATAC"
@@ -526,8 +536,8 @@ sc_multiome_process <- function(
   )
   d1[["ATAC"]] <- d1_atac
   remove(d1_atac)
-
   # Add metadata
+  print("---- Step 5: Add object metadata ----")
   Seurat::DefaultAssay(d1) <- "RNA"
   d_md <- d[, 8:ncol(d)]
   d_md <- setNames(
@@ -552,19 +562,19 @@ sc_multiome_process <- function(
     object = d1,
     metadata = d_md
   )
-
   ## Percentage mitochondrial reads
+  print("---- Step 6: Calculate mitochondrial reads ----")
   d1[["percent.mt"]] <- Seurat::PercentageFeatureSet(
     object = d1,
     pattern = "^MT-"
   )
-
   # Add nucleosome signal and TSS enrichment values
+  print("---- Step 7: Calculate Nucleosome signal and TSS enrichment ----") # nolint
   Seurat::DefaultAssay(d1) <- "ATAC"
   d1 <- Signac::NucleosomeSignal(d1)
   d1 <- Signac::TSSEnrichment(d1)
   # QC plot
-  names(d1@meta.data)
+  print("---- Step 8: Run QC to remove cells based on threshold ----")
   d1qc_pre <- Seurat::VlnPlot(
     object = d1,
     features = c(
@@ -579,7 +589,6 @@ sc_multiome_process <- function(
     ncol = 3,
     pt.size = 0.2
   )
-
   d1f <- d1[
     ,
     d1[["nCount_ATAC"]] < atac_high &
@@ -605,42 +614,40 @@ sc_multiome_process <- function(
     ncol = 3,
     pt.size = 0.2
   )
-
   # Call ATAC peaks using default parameters
-  ## NOTE: Ensure conda is activated otherwise MACS2
+  ## NOTE: Ensure conda is activated otherwise MACS3
   ## will not be found!!
-  d1pk <- Signac::CallPeaks(d1f)
+  print("---- Step 9: Call ATAC peaks ----")
+  d1pk <- Signac::CallPeaks(
+    d1f,
+    macs2.path = pathmac
+  )
   d1pk2 <- GenomeInfoDb::keepStandardChromosomes(
     d1pk,
     pruning.mode = "coarse"
   )
-
   d1pk_cnts <- Signac::FeatureMatrix(
     fragments = Signac::Fragments(d1f),
     features = d1pk2,
     cells = colnames(d1f)
   )
-
   d1f[["peaks"]] <- Signac::CreateChromatinAssay(
     counts = d1pk_cnts,
     fragments = d[["Path.frag"]],
     annotation = dfp[["ref.gtf"]]
   )
-
   # Normalization
+  print("---- Step 10: Normalize data in each assay ----")
   ## GEX
   Seurat::DefaultAssay(d1f) <- "RNA"
   d1f <- Seurat::SCTransform(d1f)
   d1f <- Seurat::RunPCA(d1f)
-
   ## ATAC Peaks
   Seurat::DefaultAssay(d1f) <- "peaks"
   d1f <- Signac::FindTopFeatures(d1f, min.cutoff = 5)
   d1f <- Signac::RunTFIDF(d1f)
   d1f <- Signac::RunSVD(d1f)
-
   d1f_depth <- Signac::DepthCor(d1f)
-
   Seurat::DefaultAssay(d1f) <- "SCT"
   d1f_sum <- head(
     Seurat::VariableFeatures(d1f),
@@ -655,8 +662,8 @@ sc_multiome_process <- function(
     points = d1f_sum,
     repel = TRUE
   )
-
-  return(
+  print("Processing completed!")
+  return( # nolint
     list(
       "Seurat.obj" = d1f,
       "Params" = df_p,
@@ -671,7 +678,8 @@ sc_multiome_process <- function(
 
 #' Batch Processing of CellRanger Multiome Files
 #'
-#' Processes a list of 10X multiome samples for downstream integration.
+#' Processes a list of 10X multiome samples for downstream integration
+#' using sc_multiome_process().
 #'
 #' @param df_par Data frame of parameters to use for data processing.
 #' @param p_name Character string providing the project name.
@@ -686,71 +694,47 @@ sc_multiome_process <- function(
 #' @param tss_low Lower limit for TSS enrichment score. Used to filter
 #' low quality cells.
 #' @param parl Logical indicating whether processing should be run in
-#' parallel (Linux and WSL2 only). Set to FALSE if running sequentially.
-#' @param core_perc Percentage of available cores to use if running
-#' in parallel (Linux and WSL2 only). Set to 1 if running sequentially.
+#' parallel (Linux and WSL2 only).
+#' @param core_num Number of available cores to use if running
+#' in parallel (Linux and WSL2 only).
+#' @param pathmac Path to MACS3 installation. This must be specified
+#' to avoid errors in peak calling through Signac, which only supports
+#' MACS2 by default. Specifying the path manually avoids this error.
 #' @return A processed list of 10X multiome sample files converted
 #' into Seurat objects with a summary list of QC and processing details.
+#' @import parallel
 #' @examples
 #'
-#' # list_data <- sc_process_batch_multiome(
-#' #  # parameter list
-#' #  l_params[["param"]],
-#' #  # Project name
-#' #  "Hiro.CF.multiome",
-#' #  # Minimum cells per feature
-#' #  5,
-#' #  # Minimum features per cell
-#' #  200,
-#' #  # ATAC counts upper limit
-#' #  100000,
-#' #  # RNA counts upper limit
-#' #  25000,
-#' #  # RNA counts lower limit
-#' #  1000,
-#' #  # Percentage mitochondrial reads upper limit
-#' #  20,
-#' #  # Nucleosome signal upper limit
-#' #  2.5,
-#' #  # TSS enrichment lower limit
-#' #  2,
-#' #  # Run in parallel?
-#' #  TRUE,
-#' #  # Core percentage
-#' #  0.1
-#' # )
+#' # list_data <- sc_process_multiome_batch(df_par = scparam)
 #'
 #' @export
-sc_process_batch_multiome <- function(
+sc_process_multiome_batch <- function(
   df_par,
-  p_name,
-  m_cell,
-  m_feat,
-  atac_high,
-  rna_high,
-  rna_low,
-  perc_mt,
-  nsm_high,
-  tss_low,
-  parl,
-  core_perc
+  p_name = "Project1",
+  m_cell = 5,
+  m_feat = 200,
+  atac_high = 100000,
+  rna_high = 25000,
+  rna_low = 1000,
+  perc_mt = 20,
+  nsm_high = 2.5,
+  tss_low = 2,
+  parl = FALSE,
+  core_num = NULL,
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
 ) {
   dfp <- df_par
-  if( # nolint
-    Sys.info()[["sysname"]] != "Windows" && parl == TRUE
-  ) {
+  if (Sys.info()[["sysname"]] != "Windows" && parl == TRUE) {
     list_data <- setNames(
       parallel::mclapply(
-        mc.cores = ceiling(
-          parallel::detectCores() *
-            core_perc
-        ),
+        mc.cores = core_num,
         seq.int(
           1,
           nrow(dfp[["param"]]),
           1
         ),
         function(x) {
+          print(paste("Processing sample", dfp[["param"]][["File.ID"]][[x]]))
           sc_multiome_process(
             # parameter list
             dfp,
@@ -773,14 +757,16 @@ sc_process_batch_multiome <- function(
             # Nucleosome signal upper limit
             nsm_high,
             # TSS enrichment lower limit
-            tss_low
+            tss_low,
+            # MACS3 installation path
+            pathmac
           )
         }
       ),
       dfp[["param"]][["File.ID"]]
     )
   }
-  if(Sys.info()[["sysname"]] != "Windows" && parl == FALSE) { # nolint
+  if (Sys.info()[["sysname"]] != "Windows" && parl == FALSE) { # nolint
     list_data <- setNames(lapply(
       seq.int(
         1,
@@ -788,6 +774,7 @@ sc_process_batch_multiome <- function(
         1
       ),
       function(x) {
+        print(paste("Processing sample", dfp[["param"]][["File.ID"]][[x]]))
         sc_multiome_process(
           # parameter list
           dfp,
@@ -817,7 +804,7 @@ sc_process_batch_multiome <- function(
     dfp[["param"]][["File.ID"]]
     )
   }
-  if(Sys.info()[["sysname"]] == "Windows" && parl == TRUE) { # nolint
+  if (Sys.info()[["sysname"]] == "Windows") {
     print(
       "Windows OS does not support parallel sample processing, 
       defaulting to sequential processing..."
@@ -829,6 +816,7 @@ sc_process_batch_multiome <- function(
         1
       ),
       function(x) {
+        print(paste("Processing sample", dfp[["param"]][["File.ID"]][[x]]))
         sc_multiome_process(
           # parameter list
           dfp,
@@ -858,42 +846,5 @@ sc_process_batch_multiome <- function(
     dfp[["param"]][["File.ID"]]
     )
   }
-  if(Sys.info()[["sysname"]] == "Windows" && parl == FALSE) { # nolint
-    list_data <- setNames(lapply(
-      seq.int(
-        1,
-        nrow(dfp[["param"]]),
-        1
-      ),
-      function(x) {
-        sc_multiome_process(
-          # parameter list
-          dfp,
-          # sample ID
-          x,
-          # Project name
-          p_name,
-          # Minimum cells per feature
-          m_cell,
-          # Minimum features per cell
-          m_feat,
-          # ATAC counts upper limit
-          atac_high,
-          # RNA feature counts upper limit
-          rna_high,
-          # RNA feature counts lower limit
-          rna_low,
-          # Percentage mitochondrial reads
-          perc_mt,
-          # Nucleosome signal upper limit
-          nsm_high,
-          # TSS enrichment lower limit
-          tss_low
-        )
-      }
-    ),
-    dfp[["param"]][["File.ID"]]
-    )
-  }
-  return(list_data)
+  return(list_data) # nolint
 }

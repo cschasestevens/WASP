@@ -11,7 +11,7 @@
 #' @param md_list A vector selecting metadata columns
 #' stratifying the prediction score output table.
 #' @param parl Should predictions be run in parallel? (TRUE/FALSE)
-#' @param core_perc Percentage of cores to use if parl is TRUE.
+#' @param core_num Number of cores to use if parl is TRUE.
 #' @return A list containing a Seurat object with predicted clusters and
 #' QC tables/plots to evaluate prediction performance.
 #' @examples
@@ -29,7 +29,7 @@ sc_predict <- function(
   cl_var = "seurat_clusters",
   md_list,
   parl = TRUE,
-  core_perc = 0.25
+  core_num = 2
 ) {
   # Load data
   d1 <- so
@@ -39,7 +39,7 @@ sc_predict <- function(
   if(parl == TRUE && Sys.info()[["sysname"]] != "Windows") { # nolint
     future::plan(
       "multicore",
-      workers = parallel::detectCores() * core_perc
+      workers = core_num
     )
   }
   options(future.globals.maxSize = fs1 * 1024^2)
@@ -69,106 +69,120 @@ sc_predict <- function(
         title = "Prediction Score Distribution"
       ) +
       sc_theme1() # nolint
-    return(p_score_dist)
+    return(p_score_dist) # nolint
   }
   p1 <- fun_dist_score(pred1@meta.data)
+  print(p1)
   # Predicted Cell Type Proportions for Each Cluster
   ## Counting function
   fun_predict_prop <- function(
     x,
     c,
-    md
+    cls
   ) {
+    # Count cell numbers
     data_pred_prop2 <- setNames(
       dplyr::count(
         x,
+        .data[[cls]],
         .data[[c]] # nolint
       ),
-      c(c, "Total Cells")
+      c(cls, c, "Total Cells")
     )
-    data_pred_prop <- dplyr::count(
-      x,
-      x[, c(md, c)]
+    # Calculate proportions relative to cluster numbers
+    data_pred_prop2[["Proportion"]] <- unlist(
+      lapply(
+        seq.int(1, nrow(data_pred_prop2), 1),
+        function(i) {
+          tot_clus <- sum(data_pred_prop2[
+            data_pred_prop2[[cls]] ==
+              data_pred_prop2[i, ][[cls]],
+          ][["Total Cells"]])
+          prop_type <- round(
+            data_pred_prop2[i, ][["Total Cells"]] / tot_clus,
+            digits = 3
+          )
+          return(prop_type) # nolint
+        }
+      )
     )
-    data_pred_prop <- dplyr::left_join(
-      data_pred_prop,
-      data_pred_prop2,
-      by = c
-    )
-    data_pred_prop[["Proportion"]] <- round(
-      data_pred_prop$n /
-        data_pred_prop$`Total Cells`,
-      digits = 3
-    )
-    return(data_pred_prop)
+    return(data_pred_prop2) # nolint
   }
   ## Cell Type Proportion Summary and Consensus Type
-  t1 <- dplyr::filter(
-    fun_predict_prop(
-      pred1@meta.data,
-      "predicted.ann_finest_level",
-      c(md_list, cl_var)
-    ),
-    .data[["Proportion"]] > # nolint
-      0.001
+  t1 <- fun_predict_prop(
+    pred1@meta.data,
+    "predicted.ann_finest_level",
+    cl_var
   )
-  t2 <- setNames(
-    aggregate(
-      t1[["Proportion"]],
-      list(
-        t1[[cl_var]],
-        t1[["predicted.ann_finest_level"]]
-      ),
-      FUN = sum
-    ),
-    c(cl_var, "predicted.id", "Proportion")
-  )
-  ## Return cell type predictions and assign highest ranked type to each cell
-  t3 <- dplyr::select(
-    unique(
-      dplyr::left_join(
-        setNames(
-          aggregate(
-            t2[["Proportion"]],
-            list(
-              t2[[cl_var]]
-            ),
-            FUN = max
-          ),
-          c(cl_var,
-            "Proportion"
+  ## Assign final predictions
+  t1[["predicted.id"]] <- unlist(
+    lapply(
+      seq.int(1, nrow(t1), 1),
+      function(i) {
+        tot_clus <- t1[
+          t1[[cl_var]] == t1[i, ][[cl_var]],
+        ]
+        # Assign identities
+        ## Consensus ID
+        if (max(tot_clus[["Proportion"]]) > 0.75) {
+          pred_id <- tot_clus[
+            tot_clus[["Proportion"]] == max(tot_clus[["Proportion"]]),
+          ]
+          pred_id <- paste(
+            pred_id[[cl_var]],
+            ".",
+            pred_id[["predicted.ann_finest_level"]],
+            "(",
+            (pred_id[["Proportion"]]) * 100,
+            "%)",
+            sep = ""
           )
-        ),
-        t2[, c("predicted.id", "Proportion")],
-        by = c("Proportion")
-      )
-    ),
-    c(cl_var, "predicted.id", "Proportion")
-  )
-  t3 <- t3[!duplicated(t3[[cl_var]]), ]
-  t_asn <- dplyr::mutate(
-    t3,
-    "predicted.id" = paste(
-      t3[[cl_var]],
-      t3[["predicted.id"]],
-      sep = "."
+        }
+        ## Mixed IDs
+        if (max(tot_clus[["Proportion"]]) < 0.75) {
+          pred_id <- dplyr::slice_max(tot_clus, .data[["Proportion"]], n = 3)
+          pred_id <- paste(
+            unique(pred_id[[cl_var]]),
+            ".",
+            paste(
+              paste(
+                pred_id[["predicted.ann_finest_level"]],
+                "(", pred_id[["Proportion"]] * 100, "%)",
+                sep = ""
+              ),
+              collapse = "_"
+            ),
+            sep = ""
+          )
+        }
+        return(pred_id) # nolint
+      }
     )
   )
   ### Change grouping columns to factors
-  t_asn[["predicted.id"]] <- factor(
-    t_asn[["predicted.id"]],
-    levels = c(gtools::mixedsort(t_asn[["predicted.id"]]))
+  t1[["predicted.id"]] <- factor(
+    t1[["predicted.id"]],
+    levels = c(gtools::mixedsort(unique(t1[["predicted.id"]])))
+  )
+  ## Add predicted id column to Seurat object
+  t2 <- dplyr::left_join(
+    pred1@meta.data,
+    t1[
+      !duplicated(t1[[cl_var]]),
+      c(cl_var, "predicted.id")
+    ],
+    by = cl_var
+  )
+  pred1 <- Seurat::AddMetaData(
+    pred1,
+    t2[["predicted.id"]],
+    col.name = "predicted.id"
   )
   list_d <- list(
     "data" = pred1,
-    "predicted_dist" = p1,
-    "predicted_all" = t1,
-    "predicted_sum" = t2,
-    "assigned_types" = t_asn
+    "predictions" = t1
   )
-  return(
-    list_d
-  )
+  return(list_d)
 }
 
 #' Cell Type Prediction (Custom)
@@ -308,7 +322,7 @@ sc_predict2 <- function(
         title = "Prediction Score Distribution"
       ) +
       sc_theme1() # nolint
-    return(p_score_dist)
+    return(p_score_dist) # nolint
   }
   list_d[["predicted_dist"]] <- fun_dist_score(
     list_d$`Prediction Scores`
@@ -341,7 +355,7 @@ sc_predict2 <- function(
         data_pred_prop$`Total Cells`,
       digits = 3
     )
-    return(data_pred_prop)
+    return(data_pred_prop) # nolint
   }
   ## Cell Type Proportion Summary and Consensus Type
   list_d[["Predicted Proportions"]] <- dplyr::filter(

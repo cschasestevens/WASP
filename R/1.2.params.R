@@ -12,7 +12,7 @@
 #' @examples
 #'
 #' # # Dataset input parameters
-#' # list_params <- create_proc_params(
+#' # list_params <- sc_proc_params(
 #' #   "data/",
 #' #   data.frame(
 #' #     # ID column name
@@ -57,8 +57,7 @@
 #' # )
 #'
 #' @export
-create_proc_params <- function(d_path, study_md) {
-
+sc_proc_params <- function(d_path, study_md) {
   list_params <- data.frame(
     # Universal columns
     data.frame(
@@ -87,10 +86,10 @@ create_proc_params <- function(d_path, study_md) {
   return(list_params) # nolint
 }
 
-#' Define Processing Parameters
+#' Define Multiome Processing Parameters
 #'
 #' Creates a data frame of processing parameters
-#' used in scRNA-Seq data processing by Seurat.
+#' used in multiome data processing by Seurat.
 #'
 #' @param study_md A data frame containing sample
 #' metadata variables specific to an individual study.
@@ -98,6 +97,9 @@ create_proc_params <- function(d_path, study_md) {
 #' to a GENCODE gene annotation file.
 #' @param fa_path Character string providing the path
 #' to a GENCODE FASTA genome file.
+#' @param dir1 Directory containing gene annotation and
+#' reference genome files.
+#' @param dir2 Directory containing 10X CellRanger data folders.
 #' @return A list of parameters to use for processing
 #' 10X multiome files.
 #' @importFrom GenomeInfoDb keepStandardChromosomes seqlevelsStyle
@@ -124,10 +126,17 @@ create_proc_params <- function(d_path, study_md) {
 #' # )
 #'
 #' @export
-sc_multiome_params <- function(study_md, gtf_path, fa_path) {
-  if(!file.exists("ref/ref.gencode45.formatted.rds") && !exists("fa_genome")) { # nolint
+sc_multiome_params <- function(
+  study_md,
+  gtf_path,
+  fa_path,
+  dir1 = "ref/",
+  dir2 = "data/"
+) {
+  if(!file.exists(paste(dir1, "ref.gencode45.formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
+    print("Formatting gene annotation and importing reference genome...")
     ## Format gene annotation .gtf
-    ref1 <- gtf_path
+    ref1 <- paste(dir1, gtf_path, sep = "")
     ref_gene1 <- rtracklayer::import(ref1)
     ref_gene1$gene_biotype <- ref_gene1$gene_type
     GenomeInfoDb::seqlevelsStyle(ref_gene1) <- "UCSC"
@@ -135,65 +144,65 @@ sc_multiome_params <- function(study_md, gtf_path, fa_path) {
       ref_gene1,
       pruning.mode = "coarse"
     )
-    saveRDS(rformat, "ref/ref.gencode45.formatted.rds")
+    saveRDS(rformat, paste(dir1, "ref.gencode45.formatted.rds", sep = ""))
     ## Import genome FASTA
-    fa_genome <- Rsamtools::FaFile(fa_path)
+    fa_genome <- Rsamtools::FaFile(paste(dir1, fa_path, sep = ""))
   }
-  if(file.exists("ref/ref.gencode45.formatted.rds") && !exists("fa_genome")) { # nolint
+  if(file.exists(paste(dir1, "ref.gencode45.formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
     print("Formatted gene annotation already exists; using formatted file...")
     ## Import formatted gene annotation .gtf
-    rformat <- readRDS("ref/ref.gencode45.formatted.rds")
+    rformat <- readRDS(paste(dir1, "ref.gencode45.formatted.rds", sep = ""))
     ## Import genome FASTA
-    fa_genome <- Rsamtools::FaFile(fa_path)
+    fa_genome <- Rsamtools::FaFile(paste(dir1, fa_path, sep = ""))
   }
-
+  print("Creating parameter list...")
   list_params <- data.frame(
     # Universal columns
     data.frame(
       # Sample Number
       Sample.No = seq(1:length( # nolint
         basename(
-          list.files("data/")
+          list.files(dir2)
         )
       )
       ),
       # Individual file names (uses CellRanger folder name by default)
-      File.ID = basename(list.files("data/")),
+      File.ID = basename(list.files(dir2)),
       # Data file paths (Location of CellRanger files: 'Data/' by default)
-      Path = paste("data/", list.files("data/"), sep = ""),
+      Path = paste(dir2, list.files(dir2), sep = ""),
       # Path to count files
       Path.count = paste(
-        "data/",
-        list.files("data/"),
+        dir2,
+        list.files(dir2),
         "/filtered_feature_bc_matrix.h5",
         sep = ""
       ),
       # Path to raw count files (for ambient contamination removal)
       Path.raw = paste(
-        "data/",
-        list.files("data/"),
+        dir2,
+        list.files(dir2),
         "/raw_feature_bc_matrix.h5",
         sep = ""
       ),
       # Path to fragment files
       Path.frag = paste(
-        "data/",
-        list.files("data/"),
+        dir2,
+        list.files(dir2),
         "/atac_fragments.tsv.gz",
         sep = ""
       ),
       # Path to feature files
       Path.feat = paste(
-        "data/",
-        list.files("data/"),
+        dir2,
+        list.files(dir2),
         "/filtered_feature_bc_matrix/features.tsv.gz",
         sep = ""
       )
     ),
-
     # Dataset-specific columns
     study_md
   )
+  print("Processing parameters successfully generated!")
   return( # nolint
     list(
       "param" = list_params,
