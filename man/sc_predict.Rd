@@ -11,7 +11,7 @@ sc_predict(
   cl_var = "seurat_clusters",
   md_list,
   parl = TRUE,
-  core_perc = 0.25
+  core_num = 2
 )
 }
 \arguments{
@@ -29,7 +29,7 @@ stratifying the prediction score output table.}
 
 \item{parl}{Should predictions be run in parallel? (TRUE/FALSE)}
 
-\item{core_perc}{Percentage of cores to use if parl is TRUE.}
+\item{core_num}{Number of cores to use if parl is TRUE.}
 }
 \value{
 A list containing a Seurat object with predicted clusters and

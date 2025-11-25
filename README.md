@@ -1,4 +1,4 @@
-# WASP v4.10 (20251121)
+# WASP v4.11 (20251125)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -100,6 +100,9 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.11
+    * Fixed namespace
+    * Removed redundant packages
 * 4.10
     * Updated tutorial to v4.10
     * Updated sc_multiome_params to enable directory selection.

@@ -2,9 +2,9 @@
 % Please edit documentation in R/1.2.params.R
 \name{sc_multiome_params}
 \alias{sc_multiome_params}
-\title{Define Processing Parameters}
+\title{Define Multiome Processing Parameters}
 \usage{
-sc_multiome_params(study_md, gtf_path, fa_path)
+sc_multiome_params(study_md, gtf_path, fa_path, dir1 = "ref/", dir2 = "data/")
 }
 \arguments{
 \item{study_md}{A data frame containing sample
@@ -15,6 +15,11 @@ to a GENCODE gene annotation file.}
 
 \item{fa_path}{Character string providing the path
 to a GENCODE FASTA genome file.}
+
+\item{dir1}{Directory containing gene annotation and
+reference genome files.}
+
+\item{dir2}{Directory containing 10X CellRanger data folders.}
 }
 \value{
 A list of parameters to use for processing
@@ -22,7 +27,7 @@ A list of parameters to use for processing
 }
 \description{
 Creates a data frame of processing parameters
-used in scRNA-Seq data processing by Seurat.
+used in multiome data processing by Seurat.
 }
 \examples{
 

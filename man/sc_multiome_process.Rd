@@ -15,7 +15,8 @@ sc_multiome_process(
   rna_low,
   perc_mt,
   nsm_high,
-  tss_low
+  tss_low,
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
 )
 }
 \arguments{
@@ -42,6 +43,10 @@ potential doublets, potential artifacts, etc.}
 
 \item{tss_low}{Lower limit for TSS enrichment score. Used to filter
 low quality cells.}
+
+\item{pathmac}{Path to MACS3 installation. This must be specified
+to avoid errors in peak calling through Signac, which only supports
+MACS2 by default. Specifying the path manually avoids this error.}
 }
 \value{
 A list containing the processed multimodal Seurat object,
@@ -53,20 +58,13 @@ Processes a single multiome sample for data integration.
 \examples{
 
 # proc_d_multiome <- sc_multiome_process(
-#   # parameter list
-#   l_params,
-#   # sample ID
-#   1,
-#   # Project name
-#   "Hiro.CF.multiome",
-#   # Minimum cells per feature
-#   5,
-#   # Minimum features per cell
-#   200,
-#   # ATAC counts upper limit
-#   100000,
-#   # RNA counts upper limit
-#   25000,
+#   df_par = scparam,
+#   i = 1,
+#   p_name = "Hiro.CF.multiome",
+#   m_cell = 5,
+#   m_feat = 200,
+#   atac_high = 100000,
+#   rna_high = 25000,
 #   # RNA counts lower limit
 #   1000,
 #   # Percentage mitochondrial reads upper limit

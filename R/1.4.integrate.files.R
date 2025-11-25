@@ -20,7 +20,6 @@
 #' @import BSgenome
 #' @import parallel
 #' @import harmony
-#' @import SeuratWrappers
 #' @import SeuratObject
 #' @examples
 #'

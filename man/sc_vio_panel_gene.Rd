@@ -44,14 +44,8 @@ individual gene expression per cluster.
 }
 \examples{
 
-# p_umap <- sc_umap_panel_gene(
-#  d_integrated,
-#  c("col1","col2","col3"),
-#  "CFTR",
-#  col_univ,
-#  c("group1","group2"),
-#  0.95,
-#  0.95
+# p_umap <- sc_vio_panel_gene(
+#   so = d, md_vars = c("CellType"), g_name = "SFTPC"
 # )
 
 }

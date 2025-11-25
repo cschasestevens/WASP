@@ -2,24 +2,26 @@
 % Please edit documentation in R/2.2.umap.R
 \name{sc_umap_panel}
 \alias{sc_umap_panel}
-\title{scRNA-Seq UMAP Plot}
+\title{UMAP panels}
 \usage{
-sc_umap_panel(so, md_list, slot1, leg_x = 0.9, leg_y = 0.25)
+sc_umap_panel(so, md_list, slot1 = "umap", pos_leg = "none", show_lab = TRUE)
 }
 \arguments{
-\item{so}{An object of class Seurat.}
+\item{so}{A Seurat object.}
 
-\item{md_list}{A vector of character strings indicating
-metadata columns for overlaying on a loadings plot.}
+\item{md_list}{A vector of metadata columns to plot.}
 
-\item{slot1}{A character string corresponding to the umap slot name to plot.}
+\item{slot1}{Name of the dimension reduction slot to plot.}
+
+\item{pos_leg}{Legend position provided as a vector (default is "none").}
+
+\item{show_lab}{Show labels on UMAP?}
 }
 \value{
 A series of UMAPs with specified metadata overlays.
 }
 \description{
-Generates a panel of UMAPs given a
-Seurat object containing PCA and UMAP results.
+Generates a panel of UMAPs from a Seurat object.
 }
 \examples{
 

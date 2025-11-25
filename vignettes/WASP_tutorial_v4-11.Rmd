@@ -88,6 +88,7 @@ saveRDS(scint, "processing/int_final.rds")
 
 ## CellType Prediction
 ```{r cell-pred, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+scpred <- readRDS("processing/anno_assigned.rds")
 #---- Azimuth Cell Type Prediction ----
 scpred <- sc_predict(
   so = scint,
@@ -101,7 +102,7 @@ saveRDS(scpred, "processing/anno_assigned.rds")
 ```
 
 ## Add Activity Scores to A Multiome Dataset
-```{r}
+```{r add-act, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
 # DA analysis
 ref_gene1 <- rtracklayer::import(
   "ref/gencode.v45.primary_assembly.annotation.gtf"
