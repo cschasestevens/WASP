@@ -4,7 +4,7 @@
 \alias{sc_atac_motifs}
 \title{Add JASPAR TF Motifs}
 \usage{
-sc_atac_motifs(so, asy1 = "ufy.peaks", dref)
+sc_atac_motifs(so, asy1 = "ufy.peaks", dref, dir1 = "processing/")
 }
 \arguments{
 \item{so}{An object of class Seurat. Must contain an ATAC assay.}
@@ -12,6 +12,8 @@ sc_atac_motifs(so, asy1 = "ufy.peaks", dref)
 \item{asy1}{Assay to use for annotating transcription factors.}
 
 \item{dref}{Path to a .gtf file containing reference gene annotations.}
+
+\item{dir1}{Output directory for exporting motif names.}
 }
 \value{
 An annotated ChromatinAssay object.

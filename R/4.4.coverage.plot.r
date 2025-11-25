@@ -1,165 +1,3 @@
-#' scATAC-Seq Gene Track
-#'
-#' Generates a gene track from a Signac ChromatinAssay.
-#' Requires scATAC-Seq peak information and a reference GRanges object
-#' for plotting gene positions.
-#'
-#' @param so An object of class Seurat. Must contain an ATAC assay.
-#' @param dref Path to a .gtf file containing reference gene annotations.
-#' @param g_name1 Gene to plot, provided as a character string.
-#' @param bp_window Numeric value indicating the number of base pairs to
-#' extend the plotting window on each end of the selected gene's location.
-#' Useful for visualizing peaks corresponding to neighboring genes.
-#' @return A sequence plot including the specified gene track and all other
-#' genes present within the specified window.
-#' @examples
-#'
-#' # p_cov <- sc_seqanno_plot(
-#' #   d,
-#' #   rtracklayer::import(
-#' #    "ref/gencode.v45.primary_assembly.annotation.gtf"
-#' #   ),
-#' #   "TMEM45A",
-#' #   20000
-#' # )
-#'
-#' @export
-sc_seqanno_plot <- function(
-  so,
-  dref,
-  g_name1,
-  bp_window
-) {
-  d <- d
-  ref_gene <- dref
-  g_name <- "SFTPB"
-
-  # Format reference gene annotation file
-  ref_gene <- dplyr::as_tibble(ref_gene)
-  # Extract detected genes from reference gene list
-  g_data <- ref_gene[
-    ref_gene[["gene_name"]] %in% rownames(d@assays$RNA$counts),
-  ]
-
-  # Extract individual gene location from Seurat object and map
-  # against reference
-  g_loc <- g_data[
-    g_data$gene_name == g_name &
-      g_data$type == "gene",
-    c("start", "end", "width", "seqnames")
-  ]
-
-  p_pos <- g_data[
-    g_data$start >= g_loc$start - 60000 &
-      g_data$end <= g_loc$end + 60000,
-  ]
-
-  p_pos <- p_pos[p_pos[["seqnames"]] == as.character(g_loc[["seqnames"]]), ]
-  p_pos <- p_pos[p_pos[["type"]] == "exon", ]
-  p_pos <- p_pos[p_pos[["seqnames"]] == g_loc[["seqnames"]], ]
-  p_peak <- p_pos[p_pos[["nearestGene"]] %in% unique(p_pos[["gene_name"]]), ]
-  p_peak <- p_peak[!is.na(p_peak[["seqnames"]]), ]
-  p_g_rng <- dplyr::bind_rows(
-    setNames(
-      lapply(
-        seq.int(
-          1,
-          nrow(unique(p_pos[, c("gene_name", "gene_id")])),
-          1
-        ),
-        function(x) {
-          r <- unique(p_pos[, c("gene_name", "gene_id")])
-          d <- p_pos[
-            p_pos[["gene_name"]] == r[x, ][["gene_name"]] &
-              p_pos[["gene_id"]] == r[x, ][["gene_id"]],
-          ]
-          d <- data.frame(
-            "gene_name" = unique(d[["gene_name"]]),
-            "gene_id" = unique(d[["gene_id"]]),
-            "start" = min(d[["start"]]),
-            "end" = max(d[["end"]])
-          )
-          return(d)
-        }
-      ),
-      unique(p_pos[, c("gene_name", "gene_id")][["gene_id"]])
-    )
-  )
-  # Plot
-  p_seq <- ggplot2::ggplot() +
-    ggplot2::geom_segment(
-      data = p_peak,
-      ggplot2::aes(
-        x = .data[["start"]], # nolint
-        xend = .data[["end"]],
-        y = 0
-      ),
-      linewidth = 12,
-      alpha = 0.6,
-      color = col_univ()[[20]] # nolint
-    ) +
-    ggplot2::geom_segment(
-      data = p_pos[
-        p_pos[["type"]] == "exon",
-      ],
-      ggplot2::aes(
-        x = start,
-        xend = end,
-        color = g_name,
-        y = 0
-      ),
-      linewidth = 8,
-      show.legend = FALSE
-    ) +
-    ggplot2::geom_segment(
-      data = p_g_rng,
-      ggplot2::aes(
-        x = start,
-        xend = end,
-        y = 0
-      ),
-      show.legend = FALSE
-    ) +
-    ggrepel::geom_text_repel(
-      data = p_g_rng,
-      ggplot2::aes(
-        x = start,
-        y = -0.1,
-        label = g_name,
-        color = g_name
-      ),
-      bg.color = "white",
-      show.legend = FALSE,
-      size = 5
-    ) +
-    ggplot2::scale_y_continuous(
-      limits = c(-0.2, 0.2)
-    ) +
-    ggplot2::scale_color_manual(values = col_univ()) +
-    ggplot2::theme(
-      axis.title.x = ggplot2::element_text(face = "bold", size = 14),
-      axis.title.y = ggplot2::element_text(
-        size = 14,
-        angle = 90,
-        color = "white"
-      ),
-      axis.line.x.bottom = ggplot2::element_line(color = "black"),
-      axis.text.x = ggplot2::element_text(
-        color = "grey40",
-        size = 14,
-        face = "bold"
-      ),
-      plot.margin = ggplot2::margin(0.1, 0.1, 0.1, 0.1, "cm"),
-      axis.ticks.length.x = grid::unit(0.2, "cm"),
-      axis.ticks.x = ggplot2::element_line(color = "black"),
-      axis.ticks.y = ggplot2::element_blank(),
-      axis.text.y = ggplot2::element_blank(),
-      panel.background = ggplot2::element_blank()
-    ) +
-    ggplot2::labs(x = "Position (bp)", y = "Seq")
-  return(p_seq)
-}
-
 #' scATAC-Seq Coverage Plot 2
 #'
 #' Generates a coverage plot from a Signac ChromatinAssay.
@@ -793,6 +631,7 @@ sc_coverage_plot2 <- function(
 #' @param so An object of class Seurat. Must contain an ATAC assay.
 #' @param asy1 Assay to use for annotating transcription factors.
 #' @param dref Path to a .gtf file containing reference gene annotations.
+#' @param dir1 Output directory for exporting motif names.
 #' @return An annotated ChromatinAssay object.
 #' @examples
 #'
@@ -808,7 +647,8 @@ sc_coverage_plot2 <- function(
 sc_atac_motifs <- function(
   so,
   asy1 = "ufy.peaks",
-  dref
+  dref,
+  dir1 = "processing/"
 ) {
   library(TFBSTools)
   library(JASPAR2020)
@@ -847,7 +687,7 @@ sc_atac_motifs <- function(
           tax_group = "vertebrates",
           all_versions = FALSE
         )
-        return(opt1)
+        return(opt1) # nolint
       }
     ),
     list_clt1
@@ -861,7 +701,7 @@ sc_atac_motifs <- function(
           x = JASPAR2020, # nolint
           opts = y
         )
-        return(pfm1)
+        return(pfm1) # nolint
       }
     ),
     list_clt1
@@ -878,7 +718,7 @@ sc_atac_motifs <- function(
   d1 <- Signac::AddMotifs(
     object = d1,
     genome = BSgenome.Hsapiens.UCSC.hg38, # nolint
-    pfm = list_pfm,
+    pfm = list_pfm
   )
   ## Save motif list
   tf_list <- Signac::GetMotifData(d1)
@@ -899,7 +739,7 @@ sc_atac_motifs <- function(
     col.names = TRUE,
     row.names = FALSE,
     file = paste(
-      "analysis/table_motifs_jaspar2020.txt"
+      dir1, "motifs_jaspar2020.txt", sep = ""
     )
   )
   return(d1)

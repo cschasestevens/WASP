@@ -88,74 +88,123 @@ saveRDS(scint, "processing/int_final.rds")
 
 ## CellType Prediction
 ```{r cell-pred, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-scpred <- readRDS("processing/anno_assigned.rds")
 #---- Azimuth Cell Type Prediction ----
 scpred <- sc_predict(
   so = scint,
   md_list = c("Code"),
   f_size = 30000
 )
-# Check assignments START HERE 11/24/25
-
+# Check assignments
+head(scpred[["data"]]@meta.data)
+sc_umap_panel(
+  so = scpred[["data"]],
+  md_list = c("seurat_clusters", "predicted.id"),
+  slot1 = "wnn.umap",
+  show_lab = TRUE
+)
+# Check proportions
+sc_barplot(
+  dat = scpred[["predictions"]],
+  ct_col = "predicted.ann_finest_level",
+  xvar = "seurat_clusters"
+)
+# Check marker genes per cluster
+sc_heatmap(
+  so = scpred[["data"]],
+  cl_var = "seurat_clusters"
+)
 # Save data
 saveRDS(scpred, "processing/anno_assigned.rds")
 ```
 
+## CellType Annotation
+```{r cell-anno, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+#---- Manually assign cell types based on prediction ----
+# Manually assign existing CellType column using consensus IDs
+cts <- dplyr::select(
+  dplyr::left_join(
+    scpred[["data"]]@meta.data["seurat_clusters"],
+    data.frame(
+      "seurat_clusters" = paste(
+        gtools::mixedsort(
+          levels(scpred[["data"]]@meta.data[["seurat_clusters"]])
+        )
+      ),
+      "CellType" = factor(
+        c("0.AT2", "1.Secretory", "2.Endothelial",
+          "3.Ciliated", "4.Monocytes", "5.T Cells",
+          "6.Alveolar macrophages", "7.AT2",
+          "8.DC2", "9.AT1", "10.AT2",
+          "11.Basal", "12.AT2", "13.Pericytes",
+          "14.AT2", "15.AT2", "16.AT2",
+          "17.B cells", "18.Monocytes", "19.AT2",
+          "20.AT1", "21.AT2",
+          "22.AT2", "23.Endothelial", "24.AT1"
+        ),
+        levels = c("0.AT2", "1.Secretory", "2.Endothelial",
+          "3.Ciliated", "4.Monocytes", "5.T Cells",
+          "6.Alveolar macrophages", "7.AT2",
+          "8.DC2", "9.AT1", "10.AT2",
+          "11.Basal", "12.AT2", "13.Pericytes",
+          "14.AT2", "15.AT2", "16.AT2",
+          "17.B cells", "18.Monocytes", "19.AT2",
+          "20.AT1", "21.AT2",
+          "22.AT2", "23.Endothelial", "24.AT1"
+        )
+      )
+    ),
+    by = "seurat_clusters"
+  ),
+  .data[["CellType"]]
+)
+scanno <- SeuratObject::AddMetaData(
+  scpred[["data"]],
+  cts[["CellType"]],
+  col.name = "CellType"
+)
+# UMAP with final cluster assignments
+sc_umap(
+  so = scanno,
+  md_var = "CellType",
+  slot1 = "wnn.umap"
+)
+## Save
+saveRDS(scanno, "processing/anno_final.rds")
+```
+
 ## Add Activity Scores to A Multiome Dataset
 ```{r add-act, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-# DA analysis
-ref_gene1 <- rtracklayer::import(
-  "ref/gencode.v45.primary_assembly.annotation.gtf"
-)
-unique(d@meta.data[["CellType"]])
-## Load libraries
-library(BSgenome.Hsapiens.UCSC.hg38)
-library(chromVAR)
-library(JASPAR2020)
+scparam
 ## Add motifs
 d_chrmasy <- sc_atac_motifs(
-  # Seurat object
-  d,
-  # Unified peaks assay
-  "ufy.peaks",
-  # Reference gene annotation
-  ref_gene1
+  so = scanno,
+  dref = scparam[["ref.gtf"]]
 )
 ## Add chromassay to Seurat
-d[["TF"]] <- d_chrmasy
-Seurat::DefaultAssay(d) <- "RNA"
-Seurat::Idents(d) <- "Group"
-diff_output_tf <- Seurat::FindAllMarkers(
-  d,
-  min.pct = 0.05,
-  verbose = TRUE
-)
-d <- Signac::RegionStats(
-  d,
+scanno[["TF"]] <- d_chrmasy
+## Calculate Chromvar activity scores
+library(chromVAR)
+Seurat::DefaultAssay(scanno) <- "TF"
+scanno <- Signac::RegionStats(
+  scanno,
   genome = BSgenome.Hsapiens.UCSC.hg38
 )
-## Motif activities
-d <- Signac::RunChromVAR(
-  object = d,
+scanno <- Signac::RunChromVAR(
+  object = scanno,
   genome = BSgenome.Hsapiens.UCSC.hg38
 )
-Seurat::DefaultAssay(d) <- "chromvar"
-saveRDS(d, "analysis/data.annotated.TFs.rds")
+Seurat::DefaultAssay(scanno) <- "chromvar"
+saveRDS(scanno, "analyze/scdata.rds")
 ```
 
 ## Analyze a Reclustered Subset of scRNA-Seq or Multiome Data
-### Reclustering w/DGEA and DA analysis
+### Reclustering w/DGEA and DA analysis, cell type predictions
 ```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
 
 ```
 
 ### Visualization of Reclustering: CellType and Expression UMAPs
 ```{r reclus2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
-```
-
-### Cell Type Predictions for Reclustered Data
-```{r pred2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
 
 ```
 

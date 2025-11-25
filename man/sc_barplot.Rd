@@ -4,7 +4,14 @@
 \alias{sc_barplot}
 \title{Cell Proportion Bar Plot}
 \usage{
-sc_barplot(dat, ct_col = "CellType", xvar = "Group", yvar = "Proportion")
+sc_barplot(
+  dat,
+  ct_col = "CellType",
+  xvar = "Group",
+  yvar = "Proportion",
+  show_counts = TRUE,
+  count_var = "Total.Cells"
+)
 }
 \arguments{
 \item{dat}{An input data frame containing counts.}

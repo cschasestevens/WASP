@@ -1,4 +1,4 @@
-# WASP v4.11 (20251125)
+# WASP v4.12 (20251125)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -65,7 +65,8 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * stringr,
         * org.Hs.eg.db (Bioconductor),
         * CellChat,
-        * anndata
+        * anndata,
+        * motifmatchr (Bioconductor)
 
 ### Installation
 * Run the following in a new R session on the command line or within R-Studio:
@@ -100,6 +101,12 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.12
+    * Added option to include labels in sc_barplot.
+    * Updated marker gene table and fixed error. in selecting top DEGs for sc_heatmap.
+    * Added motifmatchr to imports.
+    * Removed sc_heatmap_deg and sc_top10_marker_heatmap_rc, which have been superceded by sc_heatmap.
+    * Removed sc_seqanno_plot.
 * 4.11
     * Fixed namespace
     * Removed redundant packages

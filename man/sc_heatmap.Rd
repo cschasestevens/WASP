@@ -6,12 +6,12 @@
 \usage{
 sc_heatmap(
   so,
-  title1,
   filt_deg = TRUE,
+  top_deg = 10,
   l_cstm = NULL,
-  asy = "sct",
+  asy = "SCT",
   cl_var = "CellType",
-  h_w = 32,
+  h_w = 40,
   h_h = 20,
   fs_c = 6,
   fs_r = 8,
@@ -20,13 +20,12 @@ sc_heatmap(
   rot_c = 45,
   rc = TRUE,
   rn = TRUE,
-  col1 = col_grad(scm = 3)
+  col1 = col_grad(scm = 3),
+  mark_dir = "analyze/"
 )
 }
 \arguments{
-\item{so}{An object of class Seurat.}
-
-\item{title1}{Heatmap title.}
+\item{so}{A Seurat object.}
 
 \item{filt_deg}{If TRUE, filters genes from a Seurat object based
 on differential expression in at least one group/cluster.}
@@ -58,6 +57,8 @@ of the cluster variable for cell type predictions.}
 
 \item{col1}{Gradient color scheme to use
 (must be exactly 4 colors in length).}
+
+\item{title1}{Heatmap title.}
 }
 \value{
 A ComplexHeatmap object containing a top-10 marker gene heatmap.

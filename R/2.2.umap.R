@@ -594,52 +594,120 @@ sc_barplot <- function(
   dat,
   ct_col = "CellType",
   xvar = "Group",
-  yvar = "Proportion"
+  yvar = "Proportion",
+  show_counts = TRUE,
+  count_var = "Total.Cells"
 ) {
-  pv <- ggplot2::ggplot(
-    data = dat,
-    ggplot2::aes(
-      x = as.factor(.data[[xvar]]), # nolint
-      y = .data[[yvar]],
-      fill = .data[[ct_col]]
+  if (show_counts == TRUE) {
+    pdat <- setNames(
+      aggregate(
+        dat[[count_var]],
+        list(dat[[xvar]]),
+        function(x) sum(x)
+      ),
+      c(xvar, count_var)
     )
-  ) +
-    ggplot2::scale_fill_manual(
-      name = ct_col,
-      values = col_univ()
+    pv <- ggplot2::ggplot(
+      data = dat
     ) +
-    # Add barplot
-    ggplot2::geom_bar(
-      stat = "identity",
-      position = "stack",
-      width = 0.6,
-      color = "grey25"
-    ) +
-    # Add Theme
-    sc_theme1() + # nolint
-    ggplot2::labs(
-      y = yvar,
-      x = xvar
-    ) +
-    ggplot2::theme(
-      plot.margin = ggplot2::unit(
-        c(
-          0.5,
-          0.5,
-          0.5,
-          0.5
+      ggplot2::scale_fill_manual(
+        name = ct_col,
+        values = col_univ()
+      ) +
+      # Add barplot
+      ggplot2::geom_bar(
+        ggplot2::aes(
+          x = as.factor(.data[[xvar]]), # nolint
+          y = .data[[yvar]],
+          fill = .data[[ct_col]]
         ),
-        "cm"
-      ),
-      axis.text.y = ggplot2::element_text(
-        face = "bold",
-        size = 12
-      ),
-      axis.title.y = ggplot2::element_text(
-        face = "bold",
-        size = 12
+        stat = "identity",
+        position = "stack",
+        width = 0.6,
+        color = "grey25"
+      ) +
+      ggplot2::geom_label(
+        data = pdat,
+        ggplot2::aes(
+          x = (pdat[[xvar]]) + 0.6,
+          label = pdat[[count_var]]
+        ),
+        y = 0.95,
+        hjust = -0.5,
+        angle = 45
+      ) +
+      # Add Theme
+      sc_theme1() + # nolint
+      ggplot2::labs(
+        y = yvar,
+        x = xvar
+      ) +
+      ggplot2::theme(
+        plot.margin = ggplot2::unit(
+          c(
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ),
+          "cm"
+        ),
+        axis.text.y = ggplot2::element_text(
+          face = "bold",
+          size = 12
+        ),
+        axis.title.y = ggplot2::element_text(
+          face = "bold",
+          size = 12
+        )
       )
-    )
+  }
+  if (show_counts == FALSE) {
+    pv <- ggplot2::ggplot(
+      data = dat,
+      ggplot2::aes(
+        x = as.factor(.data[[xvar]]), # nolint
+        y = .data[[yvar]],
+        fill = .data[[ct_col]]
+      )
+    ) +
+      ggplot2::scale_fill_manual(
+        name = ct_col,
+        values = col_univ()
+      ) +
+      # Add barplot
+      ggplot2::geom_bar(
+        stat = "identity",
+        position = "stack",
+        width = 0.6,
+        color = "grey25"
+      ) +
+      # Add Theme
+      sc_theme1() + # nolint
+      ggplot2::labs(
+        y = yvar,
+        x = xvar
+      ) +
+      ggplot2::theme(
+        plot.margin = ggplot2::unit(
+          c(
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ),
+          "cm"
+        ),
+        axis.text.y = ggplot2::element_text(
+          face = "bold",
+          size = 12
+        ),
+        axis.title.y = ggplot2::element_text(
+          face = "bold",
+          size = 12
+        )
+      )
+  }
   return(pv) # nolint
 }
 
