@@ -11,6 +11,7 @@
 #' that all cells belong to the same group.
 #' @param s_name Variable name containing individual sample names.
 #' @param ct_col Cell type column name to use in the selected Seurat object.
+#' @param parl Should CellChat be run in parallel?
 #' @return A data frame including either pathway or individual
 #' ligand-receptor interactions.
 #' @examples
@@ -29,61 +30,129 @@ sc_cc_run <- function(
   asy1 = "SCT",
   g_name,
   s_name,
-  ct_col = "CellType"
+  ct_col = "CellType",
+  parl = TRUE
 ) {
-  # Load and extract data (subset before creating CellChat if desired)
+  # Load and extract data
   dcc <- so
   Seurat::DefaultAssay(dcc) <- asy1
-  ## Subset by condition
-  dcc_l <- setNames(
-    parallel::mclapply(
-      mc.cores = 2,
-      seq.int(1, length(unique(dcc@meta.data[[g_name]])), 1),
-      function(x) {
-        dcc <- dcc[
-          ,
-          dcc[[g_name]] == as.character(unique(dcc@meta.data[[g_name]]))[[x]]
-        ]
-        dcc@meta.data[["CellType"]] <- factor(
-          as.character(dcc@meta.data[["CellType"]]),
-          levels = gtools::mixedsort(
-            unique(as.character(dcc@meta.data[["CellType"]]))
+  ## Subset by condition and run Cell Chat
+  if (Sys.info()[["sysname"]] != "Windows" && parl == TRUE) {
+    dcc_l <- setNames(
+      parallel::mclapply(
+        mc.cores = 2,
+        seq.int(1, length(unique(dcc@meta.data[[g_name]])), 1),
+        function(x) {
+          print("Subsetting data by group column...")
+          dcc <- dcc[
+            ,
+            dcc[[g_name]] == as.character(unique(dcc@meta.data[[g_name]]))[[x]]
+          ]
+          dcc@meta.data[["CellType"]] <- factor(
+            as.character(dcc@meta.data[["CellType"]]),
+            levels = gtools::mixedsort(
+              unique(as.character(dcc@meta.data[["CellType"]]))
+            )
           )
-        )
-        dcc_d <- dcc[[asy1]]$data
-        dcc_m <- dcc@meta.data
-        dcc_m[["samples"]] <- as.factor(dcc_m[[s_name]])
-        ct_col1 <- ct_col
-        gc(reset = TRUE)
-        # Create CellChat object
-        cc1 <- CellChat::createCellChat(
-          object = dcc_d,
-          meta = dcc_m,
-          group.by = ct_col1
-        )
-        # Set database
-        CellChatDB <- CellChatDB.human # nolint
-        CellChatDB.use <- CellChatDB # nolint
-        cc1@DB <- CellChatDB.use
-        # Pre-process to determine over-expressed ligands and receptors
-        cc1 <- CellChat::subsetData(cc1)
-        future::plan("multisession", workers = parallel::detectCores() * 0.25)
-        cc1 <- CellChat::identifyOverExpressedGenes(cc1)
-        cc1 <- CellChat::identifyOverExpressedInteractions(cc1)
-        cc1 <- CellChat::smoothData(cc1, adj = PPI.human) # nolint
-        # Compute communication probability
-        options(future.globals.maxSize = 3000 * 1024^2)
-        cc1 <- CellChat::computeCommunProb(cc1, type = "triMean")
-        cc1 <- CellChat::computeCommunProbPathway(cc1)
-        # Calculate aggregated cc communication network
-        cc1 <- CellChat::aggregateNet(cc1)
-        options(future.globals.maxSize = 500 * 1024^2)
-        return(cc1) # nolint
-      }
-    ),
-    unique(dcc@meta.data[[g_name]])
-  )
-  saveRDS(dcc_l, "analysis/data.cellchat.list.rds")
+          dcc_d <- dcc[[asy1]]$data
+          dcc_m <- dcc@meta.data
+          dcc_m[["samples"]] <- as.factor(dcc_m[[s_name]])
+          ct_col1 <- ct_col
+          gc(reset = TRUE)
+          # Create CellChat object
+          print("Creating CellChat object...")
+          cc1 <- CellChat::createCellChat(
+            object = dcc_d,
+            meta = dcc_m,
+            group.by = ct_col1
+          )
+          # Set database
+          print("Set CellChat database...")
+          CellChatDB <- CellChatDB.human # nolint
+          CellChatDB.use <- CellChatDB # nolint
+          cc1@DB <- CellChatDB.use
+          # Pre-process to determine over-expressed ligands and receptors
+          print("Preprocess CellChat data...")
+          cc1 <- CellChat::subsetData(cc1)
+          future::plan(
+            "multisession",
+            workers = ceiling(parallel::detectCores() * 0.25)
+          )
+          cc1 <- CellChat::identifyOverExpressedGenes(cc1)
+          cc1 <- CellChat::identifyOverExpressedInteractions(cc1)
+          cc1 <- CellChat::smoothData(cc1, adj = PPI.human) # nolint
+          # Compute communication probability
+          print("Calculate communication probabilities...")
+          options(future.globals.maxSize = 3000 * 1024^2)
+          cc1 <- CellChat::computeCommunProb(cc1, type = "triMean")
+          cc1 <- CellChat::computeCommunProbPathway(cc1)
+          # Calculate aggregated cc communication network
+          print("Generate communication network...")
+          cc1 <- CellChat::aggregateNet(cc1)
+          options(future.globals.maxSize = 500 * 1024^2)
+          future::plan("sequential")
+          print("CellChat completed!")
+          return(cc1) # nolint
+        }
+      ),
+      unique(dcc@meta.data[[g_name]])
+    )
+  }
+  if (Sys.info()[["sysname"]] == "Windows" || parl == FALSE) {
+    dcc_l <- setNames(
+      lapply(
+        seq.int(1, length(unique(dcc@meta.data[[g_name]])), 1),
+        function(x) {
+          print("Subsetting data by group column...")
+          dcc <- dcc[
+            ,
+            dcc[[g_name]] == as.character(unique(dcc@meta.data[[g_name]]))[[x]]
+          ]
+          dcc@meta.data[["CellType"]] <- factor(
+            as.character(dcc@meta.data[["CellType"]]),
+            levels = gtools::mixedsort(
+              unique(as.character(dcc@meta.data[["CellType"]]))
+            )
+          )
+          dcc_d <- dcc[[asy1]]$data
+          dcc_m <- dcc@meta.data
+          dcc_m[["samples"]] <- as.factor(dcc_m[[s_name]])
+          ct_col1 <- ct_col
+          gc(reset = TRUE)
+          # Create CellChat object
+          print("Creating CellChat object...")
+          cc1 <- CellChat::createCellChat(
+            object = dcc_d,
+            meta = dcc_m,
+            group.by = ct_col1
+          )
+          # Set database
+          print("Set CellChat database...")
+          CellChatDB <- CellChatDB.human # nolint
+          CellChatDB.use <- CellChatDB # nolint
+          cc1@DB <- CellChatDB.use
+          # Pre-process to determine over-expressed ligands and receptors
+          print("Preprocess CellChat data...")
+          cc1 <- CellChat::subsetData(cc1)
+          cc1 <- CellChat::identifyOverExpressedGenes(cc1)
+          cc1 <- CellChat::identifyOverExpressedInteractions(cc1)
+          cc1 <- CellChat::smoothData(cc1, adj = PPI.human) # nolint
+          # Compute communication probability
+          print("Calculate communication probabilities...")
+          options(future.globals.maxSize = 3000 * 1024^2)
+          cc1 <- CellChat::computeCommunProb(cc1, type = "triMean")
+          cc1 <- CellChat::computeCommunProbPathway(cc1)
+          # Calculate aggregated cc communication network
+          print("Generate communication network...")
+          cc1 <- CellChat::aggregateNet(cc1)
+          options(future.globals.maxSize = 500 * 1024^2)
+          print("CellChat completed!")
+          return(cc1) # nolint
+        }
+      ),
+      unique(dcc@meta.data[[g_name]])
+    )
+  }
   return(dcc_l)
 }
 
@@ -95,7 +164,11 @@ sc_cc_run <- function(
 #' @param title1 Plot title, provided as a character string.
 #' @param cc_type Type of plot to use (either "total" of "comp"). Selecting
 #' "total" plots the total number of interactions between cell types, whereas
-#' "comp" compares the fold difference between two treatment groups
+#' "comp" compares the fold difference between two treatment groups.
+#' @param sel_src vector for filtering source communication cell types.
+#' @param sel_tar vector for filtering target communication cell types.
+#' @param spl_pw Should the data be filtered by signaling pathway? If TRUE,
+#' pw_sel must be specified.
 #' @param pw_sel Character string of a pathway to use for filtering the
 #' provided CellChat object.
 #' @param g_name Group name to split data by if cc_type is "comp."
@@ -103,6 +176,9 @@ sc_cc_run <- function(
 #' @param ph Plot height (in cm).
 #' @param fs1 Font size (between 0.1 and 1).
 #' @param fd1 Gap between cell type labels and plot (generally between 1 and 3).
+#' @param lgx x coordinate for legend position.
+#' @param lgy y coordinate for legend position.
+#' @param cc_dir Directory for saving output plot.
 #' @return A chord diagram displaying either pathway or individual
 #' ligand-receptor interactions.
 #' @examples
@@ -130,12 +206,13 @@ sc_cc_chrd <- function( # nolint
   sel_src = NULL,
   sel_tar = NULL,
   spl_pw = FALSE,
-  pw,
-  ph,
-  fs1,
-  fd1,
+  pw = 18,
+  ph = 18,
+  fs1 = 0.6,
+  fd1 = 1.8,
   lgx = 0.1,
-  lgy = 0.25
+  lgy = 0.25,
+  cc_dir = "analyze/"
 ) {
   # Input CC data frame
   chrd1 <- ccdf
@@ -148,7 +225,6 @@ sc_cc_chrd <- function( # nolint
     points.overflow.warning = FALSE
   )
   par(mar = rep(0.5, 4))
-
   # Plots
   ## Total interactions
   if(cc_type == "total") { # nolint
@@ -186,7 +262,7 @@ sc_cc_chrd <- function( # nolint
     # Plot
     png(
       paste(
-        "analysis/",
+        cc_dir,
         title1,
         ".png",
         sep = ""
@@ -300,7 +376,7 @@ sc_cc_chrd <- function( # nolint
       # Plot
       png(
         paste(
-          "analysis/",
+          cc_dir,
           title1,
           ".png",
           sep = ""
@@ -360,7 +436,6 @@ sc_cc_chrd <- function( # nolint
       text(-0, 1.02, title2, cex = 1)
       dev.off()
     }
-
     if(spl_pw == FALSE) { # nolint
       cc_comp2 <- dplyr::count(
         chrd1,
@@ -397,11 +472,10 @@ sc_cc_chrd <- function( # nolint
           ))
         )
       )
-
       # Plot
       png(
         paste(
-          "analysis/",
+          cc_dir,
           title1,
           ".png",
           sep = ""

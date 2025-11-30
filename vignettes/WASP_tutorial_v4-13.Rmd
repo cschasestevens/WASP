@@ -27,6 +27,7 @@ getwd()
 setwd("/home/ncsteven/analyze/Hiro.CF.multiome/WASP_test")
 # Load libraries
 library(WASP)
+library(Seurat)
 # Set parameters with sc_multiome_params (or sc_proc_params for scRNA-Seq only)
 ## - data frame containing sampleID (matches CellRanger folder name)
 ##   and group info
@@ -174,7 +175,6 @@ saveRDS(scanno, "processing/anno_final.rds")
 
 ## Add Activity Scores to A Multiome Dataset
 ```{r add-act, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-scparam
 ## Add motifs
 d_chrmasy <- sc_atac_motifs(
   so = scanno,
@@ -200,12 +200,80 @@ saveRDS(scanno, "analyze/scdata.rds")
 ## Analyze a Reclustered Subset of scRNA-Seq or Multiome Data
 ### Reclustering w/DGEA and DA analysis, cell type predictions
 ```{r reclus, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+# Load Seurat object and subset
+scre <- readRDS("analyze/scdata.rds")
+levels(scre@meta.data[["CellType"]])
+scre2 <- scre[
+  ,
+  grepl(
+    "Ciliat|Secret|Basal|AT1|AT2",
+    scre@meta.data[["CellType"]]
+  )
+]
+# Recluster subset
+scre2 <- sc_recluster(
+  so = scre2,
+  rc_type = "Mult",
+  slot1 = "SCT",
+  md_list = "Code",
+  cor_col = "Code"
+)
+names(scre2)
+levels(scre2[["predictions.predicted.id"]])
+# Assign final cell types
+cts <- dplyr::select(
+  dplyr::left_join(
+    scre2[["data"]]@meta.data["seurat_clusters"],
+    data.frame(
+      "seurat_clusters" = paste(
+        gtools::mixedsort(
+          levels(scre2[["data"]]@meta.data[["seurat_clusters"]])
+        )
+      ),
+      "CellType" = factor(
+        c("0.AT2", "1.Secretory", "2.Ciliated",
+          "3.AT2", "4.AT1", "5.AT2",
+          "6.Basal", "7.AT2",
+          "8.AT2", "9.AT2", "10.AT2",
+          "11.AT2", "12.AT1", "13.AT2",
+          "14.AT2", "15.AT1"
+        ),
+        levels = c("0.AT2", "1.Secretory", "2.Ciliated",
+          "3.AT2", "4.AT1", "5.AT2",
+          "6.Basal", "7.AT2",
+          "8.AT2", "9.AT2", "10.AT2",
+          "11.AT2", "12.AT1", "13.AT2",
+          "14.AT2", "15.AT1"
+        )
+      )
+    ),
+    by = "seurat_clusters"
+  ),
+  .data[["CellType"]]
+)
+scre2 <- SeuratObject::AddMetaData(
+  scre2[["data"]],
+  cts[["CellType"]],
+  col.name = "CellType"
+)
+# UMAP with final cluster assignments
+sc_umap(
+  so = scre2,
+  md_var = "CellType",
+  slot1 = "re_wnn_umap"
+)
+## Save
+saveRDS(scre2, "analyze/scdata_reclus.rds")
 ```
 
 ### Visualization of Reclustering: CellType and Expression UMAPs
 ```{r reclus2, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+# Visualize expression/accessibility for a specific gene
+sc_panel_gex(
+  so = scre2,
+  slot1 = "re_wnn_umap",
+  var_md = "SCGB3A2"
+)
 ```
 
 ## Statistical Analysis
@@ -231,5 +299,66 @@ saveRDS(scanno, "analyze/scdata.rds")
 
 ## CellChat Analysis
 ```{r cchat, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+library(CellChat)
+# Run CellChat
+scchat <- sc_cc_run(
+  so = scre2,
+  g_name = "Group",
+  s_name = "Code",
+  parl = FALSE
+)
+# Format as data frame and merge
+scchat2 <- list(
+  "LR" = dplyr::bind_rows(
+    lapply(
+      seq.int(1, length(scchat), 1),
+      function(x) {
+        d1 <- CellChat::subsetCommunication(
+          scchat[[x]],
+          # Switch to "netP" for pathways
+          slot.name = "net"
+        )
+        d1[["Group"]] <- rep(names(scchat)[[x]], nrow(d1))
+        return(d1) # nolint
+      }
+    )
+  ),
+  "PW" = dplyr::bind_rows(
+    lapply(
+      seq.int(1, length(scchat), 1),
+      function(x) {
+        d1 <- CellChat::subsetCommunication(
+          scchat[[x]],
+          # Switch to "netP" for pathways
+          slot.name = "netP"
+        )
+        d1[["Group"]] <- rep(names(scchat)[[x]], nrow(d1))
+        return(d1) # nolint
+      }
+    )
+  )
+)
+saveRDS(scchat2, "analyze/scdata_cellchat.rds")
+write.table(
+  scchat2[[1]],
+  "analyze/scdata_cellchat_LR.txt",
+  sep = "\t",
+  row.names = FALSE
+)
+write.table(
+  scchat2[[2]],
+  "analyze/scdata_cellchat_PW.txt",
+  sep = "\t",
+  row.names = FALSE
+)
+# Chord diagrams
+head(scchat2[[1]])
+levels(scchat2[[1]][["source"]])
+sc_cc_chrd(
+  ccdf = scchat2[[1]],
+  title1 = "plot_cellchat_LR",
+  title2 = "L-R Interactions: Subset",
+  cc_type = "comp",
+  col_g = "Group"
+)
 ```

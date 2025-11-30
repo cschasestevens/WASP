@@ -362,6 +362,20 @@ sc_visualize <- function(
   }
 }
 
+#' UMAP panels
+#'
+#' Generates a panel of UMAPs from a Seurat object.
+#'
+#' @param so A Seurat object.
+#' @param var_md Selected gene to plot.
+#' @param slot1 Name of the dimension reduction slot to plot.
+#' @param pos_leg Legend position provided as a vector (default is "none").
+#' @return A series of UMAPs and violin plot with specified overlays.
+#' @examples
+#'
+#' # p_umap <- sc_panel_gex(so = d, var_md = "SFTPB")
+#'
+#' @export
 sc_panel_gex <- function(
   so,
   slot1 = "umap",

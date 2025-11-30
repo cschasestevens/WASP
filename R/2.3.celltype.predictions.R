@@ -173,6 +173,15 @@ sc_predict <- function(
     ],
     by = cl_var
   )
+  if ("predicted.id.y" %in% names(t2)) {
+    t2 <- dplyr::select(
+      dplyr::mutate(
+        t2,
+        "predicted.id" = t2[["predicted.id.y"]]
+      ),
+      -c("predicted.id.x", "predicted.id.y")
+    )
+  }
   pred1 <- Seurat::AddMetaData(
     pred1,
     t2[["predicted.id"]],

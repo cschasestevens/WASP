@@ -4,7 +4,7 @@
 \alias{sc_cc_run}
 \title{CellChat Based Cell-cell Communication}
 \usage{
-sc_cc_run(so, asy1 = "SCT", g_name, s_name, ct_col = "CellType")
+sc_cc_run(so, asy1 = "SCT", g_name, s_name, ct_col = "CellType", parl = TRUE)
 }
 \arguments{
 \item{so}{A Seurat object. Must contain a gene expression assay.}
@@ -19,6 +19,8 @@ that all cells belong to the same group.}
 \item{s_name}{Variable name containing individual sample names.}
 
 \item{ct_col}{Cell type column name to use in the selected Seurat object.}
+
+\item{parl}{Should CellChat be run in parallel?}
 }
 \value{
 A data frame including either pathway or individual

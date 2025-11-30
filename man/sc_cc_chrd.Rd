@@ -14,12 +14,13 @@ sc_cc_chrd(
   sel_src = NULL,
   sel_tar = NULL,
   spl_pw = FALSE,
-  pw,
-  ph,
-  fs1,
-  fd1,
+  pw = 18,
+  ph = 18,
+  fs1 = 0.6,
+  fd1 = 1.8,
   lgx = 0.1,
-  lgy = 0.25
+  lgy = 0.25,
+  cc_dir = "analyze/"
 )
 }
 \arguments{
@@ -29,7 +30,14 @@ sc_cc_chrd(
 
 \item{cc_type}{Type of plot to use (either "total" of "comp"). Selecting
 "total" plots the total number of interactions between cell types, whereas
-"comp" compares the fold difference between two treatment groups}
+"comp" compares the fold difference between two treatment groups.}
+
+\item{sel_src}{vector for filtering source communication cell types.}
+
+\item{sel_tar}{vector for filtering target communication cell types.}
+
+\item{spl_pw}{Should the data be filtered by signaling pathway? If TRUE,
+pw_sel must be specified.}
 
 \item{pw}{Plot width (in cm).}
 
@@ -38,6 +46,12 @@ sc_cc_chrd(
 \item{fs1}{Font size (between 0.1 and 1).}
 
 \item{fd1}{Gap between cell type labels and plot (generally between 1 and 3).}
+
+\item{lgx}{x coordinate for legend position.}
+
+\item{lgy}{y coordinate for legend position.}
+
+\item{cc_dir}{Directory for saving output plot.}
 
 \item{pw_sel}{Character string of a pathway to use for filtering the
 provided CellChat object.}

@@ -1,4 +1,4 @@
-# WASP v4.12 (20251125)
+# WASP v4.13 (20251130)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -101,6 +101,12 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.13
+    * Integrated cell type predictions into sc_recluster.
+    * Simplified output of sc_recluster and updated input parameters.
+    * Fixed error in sc_predict where an existing "predicted.id" column prevented the addition of new cell type predictions to a Seurat object.
+    * Revised sc_cc_run to be compatible with Windows.
+    * Updated parameters for sc_cc_chrd.
 * 4.12
     * Added option to include labels in sc_barplot.
     * Updated marker gene table and fixed error. in selecting top DEGs for sc_heatmap.
