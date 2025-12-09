@@ -13,12 +13,6 @@
 #' Run ?Seurat::CreateSeuratObject() for more details.
 #' @return A processed sample file converted into a Seurat object
 #' with a summary list of QC and processing details.
-#' @import Seurat
-#' @import BiocGenerics
-#' @import SoupX
-#' @import scDblFinder
-#' @import SingleCellExperiment
-#' @import SummarizedExperiment
 #' @examples
 #'
 #' # proc_data <- sc_process_file(
@@ -212,7 +206,6 @@ sc_process_file <- function(
 #' in parallel (Linux and WSL2 only). Set to 1 if running sequentially.
 #' @return A processed list of sample files converted into Seurat
 #' objects with a summary list of QC and processing details.
-#' @import parallel
 #' @examples
 #'
 #' # list_data <- sc_process_batch(
@@ -357,7 +350,6 @@ sc_process_batch <- function(
 #' @param df_par Data frame of updated parameters used for data processing.
 #' @return A scatter plot indicating the individual
 #' and average contamination fractions for all samples.
-#' @import ggplot2
 #' @examples
 #'
 #' # sc_plot_rho(list_params)
@@ -434,12 +426,6 @@ sc_plot_rho <- function(
 #' MACS2 by default. Specifying the path manually avoids this error.
 #' @return A list containing the processed multimodal Seurat object,
 #' processing parameters, and QC plots.
-#' @import Seurat
-#' @import decontX
-#' @import SingleCellExperiment
-#' @import SeuratObject
-#' @import Signac
-#' @import GenomeInfoDb
 #' @examples
 #'
 #' # proc_d_multiome <- sc_multiome_process(
@@ -702,7 +688,6 @@ sc_multiome_process <- function(
 #' MACS2 by default. Specifying the path manually avoids this error.
 #' @return A processed list of 10X multiome sample files converted
 #' into Seurat objects with a summary list of QC and processing details.
-#' @import parallel
 #' @examples
 #'
 #' # list_data <- sc_process_multiome_batch(df_par = scparam)

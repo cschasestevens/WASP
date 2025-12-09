@@ -277,9 +277,89 @@ sc_panel_gex(
 ```
 
 ## Statistical Analysis
-### Differential Gene Expression/Accessibility Analysis (reclustered cell types)
+### Differential Gene Expression/Accessibility Analysis
 ```{r dgea, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+# Load data
+d1 <- readRDS("analyze/scdata_reclus.rds")
+# DGEA
+## Perform test
+scdgea <- sc_diff(
+  so = d1,
+  mast_comp = "GroupNonCF",
+  mast_name = "NonCF vs. CF",
+  form1 = c("Group", "nFeature_SCT"),
+  cores = 4
+)
+## Save results
+lapply(
+  seq.int(1, length(scdgea), 1),
+  function(x) {
+    write.table(
+      scdgea[[x]],
+      file = paste(
+        "analyze/dgea_",
+        names(scdgea)[[x]],
+        ".txt",
+        sep = ""
+      ),
+      sep = "\t",
+      row.names = FALSE
+    )
+    print(paste(names(scdgea)[[x]], "saved!"))
+  }
+)
+# DA
+## Load libraries for adding TF names to results
+library(JASPAR2020)
+library(TFBSTools)
+## Perform test
+scdact <- sc_diff(
+  so = d1,
+  mast_comp = "GroupNonCF",
+  mast_name = "NonCF vs. CF",
+  form1 = c("Group", "nFeature_SCT"),
+  cores = 4,
+  asy = "chromvar",
+  slot1 = "data"
+)
+head(scdact[["results"]])
+## Save results
+lapply(
+  seq.int(1, length(scdact), 1),
+  function(x) {
+    write.table(
+      scdact[[x]],
+      file = paste(
+        "analyze/da_",
+        names(scdact)[[x]],
+        ".txt",
+        sep = ""
+      ),
+      sep = "\t",
+      row.names = FALSE
+    )
+    print(paste(names(scdact)[[x]], "saved!"))
+  }
+)
+```
 
+## Volcano Plots
+```{r vol, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
+# Plot DGEA and DA results START HERE 12/10/25
+## DGEA
+## DA
+sc_volcano(
+  l_deg = scdact[["results"]],
+  ct = "1.Secretory",
+  comp_name = "NonCF vs. CF",
+  gene_name = "TF",
+  x_title = paste(
+    "Higher Activity in CF",
+    "<----->",
+    "Higher Activity in nonCF",
+    sep = " "
+  )
+)
 ```
 
 ## Coverage Plots

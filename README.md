@@ -1,4 +1,4 @@
-# WASP v4.13 (20251130)
+# WASP v4.14 (20251209)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -101,6 +101,10 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.14
+    * Updated package tutorial to v4.14.
+    * Updated imports for sc_process functions.
+    * Simplified sc_diff input parameters, updated function documentation, and fixed error where missing transcription factors/genes were not included in sc_diff output.
 * 4.13
     * Integrated cell type predictions into sc_recluster.
     * Simplified output of sc_recluster and updated input parameters.

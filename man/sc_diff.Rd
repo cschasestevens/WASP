@@ -2,56 +2,43 @@
 % Please edit documentation in R/4.1.DGEA.R
 \name{sc_diff}
 \alias{sc_diff}
-\title{scRNA-Seq DGEA}
+\title{DGEA and DA}
 \usage{
 sc_diff(
   so,
   asy = "SCT",
   slot1 = "scale.data",
-  md_list,
   ct = "CellType",
   mast_comp,
   mast_name,
   form1,
-  cores = 1,
-  atac_type = NULL
+  cores = 1
 )
 }
 \arguments{
-\item{so}{An object of class Seurat. Must contain the columns
-'CellType' and 'CellGroup' in the metadata slot.}
+\item{so}{A Seurat object}
 
 \item{asy}{Character string providing the name of the assay
 to use for differential analysis.}
 
 \item{slot1}{Character string selecting the slot from the
-Seurat object to pull from the chosen assay. Either type "data"
-if using expression data and "counts" if analyzing ATAC data.}
+Seurat object to pull from the chosen assay.}
 
-\item{md_list}{A vector of character strings indicating
-metadata columns for overlaying on a loadings plot.}
-
-\item{ct}{Character string vector containing the name(s) of up to
-2 cell type groups present in the CellGroup column.
-The provided Seurat object is then subsetted to include
-only clusters from the provided group names.}
+\item{ct}{CellType column name.}
 
 \item{mast_comp}{Character string indicating the name of the MAST
 group comparison for conducting DGEA. MAST names are comprised of the chosen
 variable name and the leading factor level within that variable.}
 
 \item{mast_name}{User-defined name of a DGEA comparison,
-given as a character string.}
+provided as a character string.}
 
 \item{form1}{Formula to use for MAST generalized linear model. Usually
 consists of two terms, the first of which is the treatment group column
 name and the second of which is the column indicating the number of features
 present per cell.}
 
-\item{atac_type}{(optional) Character string providing the name of a cell
-type for performing differential analysis. Only used for scATAC-Seq data.}
-
-\item{core_perc}{Percentage of available cores to use if running
+\item{cores}{Number of available cores to use if running
 in parallel (Linux and WSL2 only). Set to 1 if running sequentially.}
 }
 \value{
@@ -60,39 +47,16 @@ including genes missing fold changes and cell type DGEA results
 with errors.
 }
 \description{
-Performs DGEA per cell type of a Seurat Object.
+Performs differential gene expression/accessibility analysis
+per cell type from a Seurat Object.
 }
 \examples{
 
-# diff.output <- sc_diff(
-#   # Seurat object
-#   d,
-#   # Assay
-#   "ATAC",
-#   # Slot
-#   "counts",
-#   # metadata column list
-#   c("Code","Airway","CellType","nFeature_ATAC"),
-#   # Cell type column name
-#   "CellType",
-#   # MAST comparison name
-#   "AirwaySAE",
-#   # MAST name (user-provided)
-#   "SAE vs. LAE",
-#   # Formula
-#   as.formula(
-#     paste(
-#       "~","Airway","+",
-#       "nFeature_ATAC",
-#       sep = " "
-#     )
-#   ),
-#   # run in parallel? (Set to FALSE if on Windows)
-#   TRUE,
-#   # core percentage to use
-#   0.08,
-#   # (optional) CellType to use if assay is "ATAC"
-#   atac_type = x
+# scdgea <- sc_diff(
+#   so = d,
+#   mast_comp = "AirwaySAE",
+#   mast_name = "SAE vs. LAE",
+#   form1 = c("Group", "nFeature_SCT")
 # )
 
 }

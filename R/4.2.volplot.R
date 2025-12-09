@@ -38,14 +38,14 @@ sc_volcano <- function( # nolint
   l_deg,
   ct,
   comp_name,
-  gene_name,
+  gene_name = "GENE",
   filt_lab = NULL,
-  diff_col,
-  p_col,
+  diff_col = "log2FC",
+  p_col = "H.qval",
   p_cut = 0.05,
   f_cut = 0.25,
-  f_lim,
-  y_limit,
+  f_lim = 5,
+  y_limit = 50,
   x_title
 ) {
   if(is.null(filt_lab) == TRUE) { # nolint

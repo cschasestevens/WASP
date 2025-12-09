@@ -1,67 +1,35 @@
-#' scRNA-Seq DGEA
+#' DGEA and DA
 #'
-#' Performs DGEA per cell type of a Seurat Object.
+#' Performs differential gene expression/accessibility analysis
+#' per cell type from a Seurat Object.
 #'
-#' @param so An object of class Seurat. Must contain the columns
-#' 'CellType' and 'CellGroup' in the metadata slot.
+#' @param so A Seurat object
 #' @param asy Character string providing the name of the assay
 #' to use for differential analysis.
 #' @param slot1 Character string selecting the slot from the
-#' Seurat object to pull from the chosen assay. Either type "data"
-#' if using expression data and "counts" if analyzing ATAC data.
-#' @param md_list A vector of character strings indicating
-#' metadata columns for overlaying on a loadings plot.
-#' @param ct Character string vector containing the name(s) of up to
-#' 2 cell type groups present in the CellGroup column.
-#' The provided Seurat object is then subsetted to include
-#' only clusters from the provided group names.
+#' Seurat object to pull from the chosen assay.
+#' @param ct CellType column name.
 #' @param mast_comp Character string indicating the name of the MAST
 #' group comparison for conducting DGEA. MAST names are comprised of the chosen
 #' variable name and the leading factor level within that variable.
 #' @param mast_name User-defined name of a DGEA comparison,
-#' given as a character string.
+#' provided as a character string.
 #' @param form1 Formula to use for MAST generalized linear model. Usually
 #' consists of two terms, the first of which is the treatment group column
 #' name and the second of which is the column indicating the number of features
 #' present per cell.
-#' @param core_perc Percentage of available cores to use if running
+#' @param cores Number of available cores to use if running
 #' in parallel (Linux and WSL2 only). Set to 1 if running sequentially.
-#' @param atac_type (optional) Character string providing the name of a cell
-#' type for performing differential analysis. Only used for scATAC-Seq data.
 #' @return A list of DGEA results per cell type for the chosen group comparison,
 #' including genes missing fold changes and cell type DGEA results
 #' with errors.
 #' @examples
 #'
-#' # diff.output <- sc_diff(
-#' #   # Seurat object
-#' #   d,
-#' #   # Assay
-#' #   "ATAC",
-#' #   # Slot
-#' #   "counts",
-#' #   # metadata column list
-#' #   c("Code","Airway","CellType","nFeature_ATAC"),
-#' #   # Cell type column name
-#' #   "CellType",
-#' #   # MAST comparison name
-#' #   "AirwaySAE",
-#' #   # MAST name (user-provided)
-#' #   "SAE vs. LAE",
-#' #   # Formula
-#' #   as.formula(
-#' #     paste(
-#' #       "~","Airway","+",
-#' #       "nFeature_ATAC",
-#' #       sep = " "
-#' #     )
-#' #   ),
-#' #   # run in parallel? (Set to FALSE if on Windows)
-#' #   TRUE,
-#' #   # core percentage to use
-#' #   0.08,
-#' #   # (optional) CellType to use if assay is "ATAC"
-#' #   atac_type = x
+#' # scdgea <- sc_diff(
+#' #   so = d,
+#' #   mast_comp = "AirwaySAE",
+#' #   mast_name = "SAE vs. LAE",
+#' #   form1 = c("Group", "nFeature_SCT")
 #' # )
 #'
 #' @export
@@ -69,18 +37,14 @@ sc_diff <- function( # nolint
   so,
   asy = "SCT",
   slot1 = "scale.data",
-  md_list,
   ct = "CellType",
   mast_comp,
   mast_name,
   form1,
-  cores = 1,
-  atac_type = NULL
+  cores = 1
 ) {
   # Seurat object
   d <- so
-  # Metadata columns
-  lc <- md_list
   # Cell type column
   c <- ct
   # Slot name
@@ -89,42 +53,37 @@ sc_diff <- function( # nolint
   assy <- asy
   # MAST formula terms
   form <- form1
-  ## Filter if performing DA analysis
-  if (missing(atac_type) == FALSE) {
-    d <- d[, d@meta.data[[c]] == atac_type]
-  }
   # MAST Comparison (combines column name and leading factor level for name)
   mc <- mast_comp
   # MAST Comparison name
   mn <- mast_name
   ## Input
   deg_mat <- as.matrix(
-    SeuratObject::GetAssayData(d, slot = slt, assay = assy)
+    SeuratObject::GetAssayData(d, layer = slt, assay = assy)
   )
-  if (missing(atac_type) == FALSE) { # nolint
-    if (assy == "chromvar") { # nolint
-      rownames(deg_mat) <- rownames(d@assays[[assy]])
-    }
-    if (assy == "ATAC") { # nolint
-      rownames(deg_mat) <- paste(
-        d@assays[["chromvar"]]@meta.features$nearestGene,
-        seq.int(1, nrow(d@assays[[assy]]@meta.features), 1),
-        sep = "."
-      )
-    }
+  ## Set correct rownames if performing DA analysis
+  if (assy == "chromvar") { # nolint
+    rownames(deg_mat) <- rownames(d@assays[[assy]])
+  }
+  if (assy == "ATAC") { # nolint
+    rownames(deg_mat) <- paste(
+      d@assays[["chromvar"]]@meta.features$nearestGene,
+      seq.int(1, nrow(d@assays[[assy]]@meta.features), 1),
+      sep = "."
+    )
   }
   deg_cols <- data.frame(
-    d@meta.data[, lc]
+    d@meta.data[, c(form, c)]
   )
-  ## Format input as DGEA object
-  if (missing(atac_type) == FALSE) { # nolint
+  ## Format input as DGEA/DA object
+  if (assy == "chromvar" || assy == "ATAC") {
     dgea_sc <- MAST::FromMatrix(
       deg_mat,
       cData = deg_cols,
       check_sanity = FALSE
     )
   }
-  if (missing(atac_type) == TRUE) { # nolint
+  if (assy != "chromvar" && assy != "ATAC") {
     dgea_sc <- MAST::FromMatrix(
       deg_mat,
       cData = deg_cols
@@ -140,13 +99,49 @@ sc_diff <- function( # nolint
     seq.int(1, length(list_dgea[["CellType"]]), 1),
     function(i) {
       # Subset data
+      ## split cell types
       s1 <- list_dgea[[1]][ , SingleCellExperiment::colData(list_dgea[["SCE"]])[[c]] == list_dgea[["CellType"]][[i]]] #nolint
+      ## filter genes not expressed in cell type
       s1_sum <- rowSums(SummarizedExperiment::assay(s1) > 0)
+      ## remove NA
       s1_sum[is.na(s1_sum)] <- 0
+      ## retain genes expressed in > 5% of cells per type
       s1 <- s1[s1_sum / ncol(s1) >= 0.05, ]
       return(s1) # nolint
     }
   ), list_dgea[["CellType"]])
+  ## Return list of variable genes removed from each cell type
+  list_miss <- dplyr::bind_rows(
+    lapply(
+      seq.int(1, length(list_dgea_sub), 1),
+      function(i) {
+        data.frame(
+          "CellType" = rep(
+            unique(
+              as.character(
+                SingleCellExperiment::colData(list_dgea_sub[[i]])[[c]]
+              )
+            ),
+            length(
+              rownames(
+                list_dgea[["SCE"]]
+              )[
+                rownames(list_dgea[["SCE"]]) %in%
+                  rownames(list_dgea_sub[[i]]) == FALSE
+              ]
+            )
+          ),
+          "GENE" = rownames(
+            list_dgea[["SCE"]]
+          )[
+            rownames(list_dgea[["SCE"]]) %in%
+              rownames(list_dgea_sub[[i]]) == FALSE
+          ]
+        )
+      }
+    )
+  )
+  list_miss[["Note"]] <- "Removed based on filtering"
   remove(list_dgea)
   ## Define output function
   d_mast_sum_fun <- function(
@@ -221,7 +216,7 @@ sc_diff <- function( # nolint
   # Run DGEA/DA
   if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
     list_dgea_res <- setNames(parallel::mclapply(
-      mc.cores = cores,
+      mc.cores = 4,
       seq.int(1, length(list_dgea_sub), 1),
       function(x) {
         tryCatch(
@@ -266,6 +261,7 @@ sc_diff <- function( # nolint
       }
     ), names(list_dgea_sub))
   }
+  # Sequential processing
   if (Sys.info()[["sysname"]] == "Windows" || cores == 1) {
     list_dgea_res <- setNames(lapply(
       seq.int(1, length(list_dgea_sub), 1),
@@ -313,36 +309,135 @@ sc_diff <- function( # nolint
     ), names(list_dgea_sub))
   }
   # Combine results
-  dgea_comb <- list_dgea_res[lengths(list_dgea_res) > 1]
+  dgea_comb <- dplyr::bind_rows(list_dgea_res[lengths(list_dgea_res) > 1])
+  dgea_res <- dgea_comb[!is.na(dgea_comb[["logFC"]]), ]
+  dgea_res[["CellType"]] <- factor(
+    dgea_res[["CellType"]],
+    levels = gtools::mixedsort(
+      unique(dgea_res[["CellType"]])
+    )
+  )
+  dgea_res <- dgea_res[
+    order(dgea_res[["CellType"]], dgea_res[["GENE"]]),
+  ]
   ## isolate DGEA results with errors
-  dgea_error <- list_dgea_res[lengths(list_dgea_res) <= 1]
+  dgea_error <- unlist(list_dgea_res[lengths(list_dgea_res) <= 1])
   ## return genes for each result with missing logFC
-  dgea_miss <- lapply(
-    dgea_comb,
-    function(x) x[is.na(x[["logFC"]]), ]
+  ## and combine with filtered list
+  dgea_miss <- dgea_comb[
+    is.na(dgea_comb[["logFC"]]),
+    c("CellType", "GENE")
+  ]
+  dgea_miss[["Note"]] <- "Only expressed in MAST comparison group"
+  dgea_miss <- dplyr::bind_rows(
+    dgea_miss,
+    list_miss
   )
-  dgea_res <- lapply(
-    dgea_comb,
-    function(x) x[!is.na(x[["logFC"]]), ]
+  dgea_miss[["CellType"]] <- factor(
+    dgea_miss[["CellType"]],
+    levels = gtools::mixedsort(
+      unique(dgea_miss[["CellType"]])
+    )
   )
+  dgea_miss <- dgea_miss[
+    order(dgea_miss[["CellType"]], dgea_miss[["GENE"]]),
+  ]
+  # Output final results
   dgea_sum <- list(
-    "D.results" = dplyr::bind_rows(dgea_res),
-    "D.missing" = dplyr::bind_rows(dgea_miss),
-    "D.errors" = dplyr::bind_rows(dgea_error)
+    "results" = dplyr::bind_rows(dgea_res),
+    "missing" = dplyr::bind_rows(dgea_miss),
+    "errors" = dplyr::bind_rows(dgea_error)
   )
-  dgea_sum[["D.results"]][["H.qval"]] <- p.adjust(
-    dgea_sum[["D.results"]][["H.pval"]],
+  dgea_sum[["results"]][["H.qval"]] <- p.adjust(
+    dgea_sum[["results"]][["H.pval"]],
     method = "BH"
   )
-  dgea_sum[["D.results"]][["log2FC"]] <- log2(
-    exp(dgea_sum[["D.results"]][["logFC"]])
+  dgea_sum[["results"]][["log2FC"]] <- log2(
+    exp(dgea_sum[["results"]][["logFC"]])
   )
-  dgea_sum[["D.results"]] <- dplyr::select(
-    dgea_sum[["D.results"]],
+  dgea_sum[["results"]] <- dplyr::select(
+    dgea_sum[["results"]],
     1:4,
     H.qval, # nolint
     log2FC, # nolint
     everything() # nolint
   )
+  ## Add TF names for differential accessibility analysis
+  ## of chromvar transcription factor activity scores
+  if (assy == "chromvar") {
+    if (Sys.info()[["sysname"]] == "Windows" || cores == 1) {
+      list_tf <- dplyr::bind_rows(
+        lapply(
+          seq.int(
+            1,
+            length(
+              unique(
+                c(dgea_sum[["results"]][["GENE"]], dgea_sum[["missing"]][["GENE"]]) # nolint
+              )
+            ),
+            1
+          ),
+          function(i) {
+            ltf <- unique(
+              c(
+                dgea_sum[["results"]][["GENE"]],
+                dgea_sum[["missing"]][["GENE"]]
+              )
+            )
+            ltf1 <- data.frame(
+              "GENE" = ltf[[i]],
+              "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[i]])) # nolint
+            )
+            return(ltf1) # nolint
+          }
+        )
+      )
+    }
+    if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
+      list_tf <- dplyr::bind_rows(
+        parallel::mclapply(
+          mc.cores = 12,
+          seq.int(
+            1,
+            length(
+              unique(
+                c(dgea_sum[["results"]][["GENE"]], dgea_sum[["missing"]][["GENE"]]) # nolint
+              )
+            ),
+            1
+          ),
+          function(i) {
+            ltf <- unique(
+              c(
+                dgea_sum[["results"]][["GENE"]],
+                dgea_sum[["missing"]][["GENE"]]
+              )
+            )
+            ltf1 <- data.frame(
+              "GENE" = ltf[[i]],
+              "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[i]])) # nolint
+            )
+            return(ltf1) # nolint
+          }
+        )
+      )
+    }
+    dgea_sum[["results"]] <- dplyr::select(
+      dplyr::left_join(
+        dgea_sum[["results"]],
+        list_tf,
+        by = "GENE"
+      ),
+      "CellType", "Comparison", "GENE", "TF", everything()
+    )
+    dgea_sum[["missing"]] <- dplyr::select(
+      dplyr::left_join(
+        dgea_sum[["missing"]],
+        list_tf,
+        by = "GENE"
+      ),
+      "CellType", "GENE", "TF", "Note"
+    )
+  }
   return(dgea_sum)
 }
