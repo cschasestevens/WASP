@@ -230,8 +230,7 @@ sc_heatmap <- function(
 
 #' Dot Plot
 #'
-#' Generates a dot plot from a Seurat Object based on a DGEA/DA list based on
-#' a threshold or custom gene list for a specific cell type and comparison.
+#' Generates a dot plot from a Seurat Object and a DGEA/DA list.
 #'
 #' @param p_type Should a custom gene list or DGEA results object
 #' be used for plotting?
@@ -263,25 +262,20 @@ sc_heatmap <- function(
 #' @return A dotplot and formatted data frame for the selected assay.
 #' @examples
 #'
-#' # dot1 <- sc_dotplot( # nolint
-#' #   p_type = "cstm",
-#' #   l_gene = c("IRF1", "IRF2", "STAT1"),
-#' #   so = d,
-#' #   asy1 = "SCT",
-#' #   ct_var = "CellType",
-#' #   split_var = TRUE,
-#' #   list_var = "Group",
-#' #   vline1 = FALSE
+#' # sc_dotplot(
+#' #   so = d1,
+#' #   l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
+#' #   ct_var = "CellType"
 #' # )
 #'
 #' @export
 sc_dotplot <- function( # nolint
-  p_type = "threshold",
+  p_type = "cstm",
   topn = 10,
   l_gene,
   filt_var = NULL,
   so,
-  asy1 = "SCT",
+  asy1 = "RNA",
   ct_filt = FALSE,
   ct = NULL,
   ct_var,
@@ -296,16 +290,16 @@ sc_dotplot <- function( # nolint
   SeuratObject::DefaultAssay(d) <- asy1
   c <- ct
   l1 <- l_gene
-  if(grepl("RNA|sct|SCT", asy1)) { # nolint
+  if (grepl("RNA|sct|SCT", asy1)) {
     gvar <- "GENE"
     exvar <- "avg.exp"
     exvar2 <- "Average Expression"
   }
-  if(grepl("ufy.peaks|chromvar", asy1)) { # nolint
+  if (grepl("ufy.peaks|chromvar", asy1)) {
     gvar <- "ID"
     exvar <- "avg.activity"
     exvar2 <- "Average Activity"
-    if(p_type == "cstm") { # nolint
+    if (p_type == "cstm") {
       list_tf <- unlist(
         lapply(
           row.names(d),
@@ -331,7 +325,7 @@ sc_dotplot <- function( # nolint
     }
   }
   # Select data based on threshold
-  if(p_type == "threshold") { # nolint
+  if (p_type == "threshold") {
     ## Return specified genes/motifs for selected comparison and cell types
     top10 <- dplyr::select(
       dplyr::slice_max(
@@ -368,13 +362,13 @@ sc_dotplot <- function( # nolint
     )
   }
   # Plot data based on a custom list
-  if(p_type == "cstm") { # nolint
+  if (p_type == "cstm") {
     top10 <- as.vector(l1)
     top10_pres <- unique(top10[top10 %in% SeuratObject::Features(d)])
     top10_abs <- subset(top10, !(top10 %in% SeuratObject::Features(d)))
   }
   ## select genes from Seurat object
-  if(split_var == TRUE) { # nolint
+  if (split_var == TRUE) {
     d1 <- cbind(
       SeuratObject::FetchData(
         d,

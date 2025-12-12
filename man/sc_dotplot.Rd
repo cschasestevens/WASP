@@ -5,12 +5,12 @@
 \title{Dot Plot}
 \usage{
 sc_dotplot(
-  p_type = "threshold",
+  p_type = "cstm",
   topn = 10,
   l_gene,
   filt_var = NULL,
   so,
-  asy1 = "SCT",
+  asy1 = "RNA",
   ct_filt = FALSE,
   ct = NULL,
   ct_var,
@@ -67,20 +67,14 @@ to place on the dot plot.}
 A dotplot and formatted data frame for the selected assay.
 }
 \description{
-Generates a dot plot from a Seurat Object based on a DGEA/DA list based on
-a threshold or custom gene list for a specific cell type and comparison.
+Generates a dot plot from a Seurat Object and a DGEA/DA list.
 }
 \examples{
 
-# dot1 <- sc_dotplot( # nolint
-#   p_type = "cstm",
-#   l_gene = c("IRF1", "IRF2", "STAT1"),
-#   so = d,
-#   asy1 = "SCT",
-#   ct_var = "CellType",
-#   split_var = TRUE,
-#   list_var = "Group",
-#   vline1 = FALSE
+# sc_dotplot(
+#   so = d1,
+#   l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
+#   ct_var = "CellType"
 # )
 
 }

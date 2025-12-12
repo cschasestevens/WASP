@@ -28,6 +28,11 @@ setwd("/home/ncsteven/analyze/Hiro.CF.multiome/WASP_test")
 # Load libraries
 library(WASP)
 library(Seurat)
+library(JASPAR2020)
+library(TFBSTools)
+library(chromVAR)
+library(CellChat)
+library(BSgenome.Hsapiens.UCSC.hg38)
 # Set parameters with sc_multiome_params (or sc_proc_params for scRNA-Seq only)
 ## - data frame containing sampleID (matches CellRanger folder name)
 ##   and group info
@@ -183,7 +188,6 @@ d_chrmasy <- sc_atac_motifs(
 ## Add chromassay to Seurat
 scanno[["TF"]] <- d_chrmasy
 ## Calculate Chromvar activity scores
-library(chromVAR)
 Seurat::DefaultAssay(scanno) <- "TF"
 scanno <- Signac::RegionStats(
   scanno,
@@ -309,9 +313,6 @@ lapply(
   }
 )
 # DA
-## Load libraries for adding TF names to results
-library(JASPAR2020)
-library(TFBSTools)
 ## Perform test
 scdact <- sc_diff(
   so = d1,
@@ -345,8 +346,19 @@ lapply(
 
 ## Volcano Plots
 ```{r vol, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-# Plot DGEA and DA results START HERE 12/10/25
+# Plot DGEA and DA results
 ## DGEA
+sc_volcano(
+  l_deg = scdgea[["results"]],
+  ct = "1.Secretory",
+  comp_name = "NonCF vs. CF",
+  x_title = paste(
+    "Higher Activity in CF",
+    "<----->",
+    "Higher Activity in nonCF",
+    sep = " "
+  )
+)
 ## DA
 sc_volcano(
   l_deg = scdact[["results"]],
@@ -364,12 +376,23 @@ sc_volcano(
 
 ## Coverage Plots
 ```{r covg, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+# Generate coverage plot for genomic region closest to
+# selected gene transcription site
+sc_coverage_plot(
+  so = d1,
+  dref = scparam[["ref.gtf"]],
+  g_name = "SCGB1A1"
+)
 ```
 
 ## Dot Plots
 ```{r dotp, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+# Generate dotplot from dgea/da list or from custom gene list
+sc_dotplot(
+  so = d1,
+  l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
+  ct_var = "CellType"
+)
 ```
 
 ## Gene Ontology/Custom Gene Set Enrichment Analysis **(Development)**
@@ -379,7 +402,6 @@ sc_volcano(
 
 ## CellChat Analysis
 ```{r cchat, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-library(CellChat)
 # Run CellChat
 scchat <- sc_cc_run(
   so = scre2,

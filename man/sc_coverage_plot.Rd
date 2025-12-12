@@ -6,16 +6,15 @@
 \usage{
 sc_coverage_plot(
   so,
-  dref = NULL,
+  dref,
   asy1 = "ufy.peaks",
-  asy2 = "sct",
+  asy2 = "RNA",
   asy_dat = "scale.data",
   g_name,
   g_region = NULL,
-  f_name,
   bp_window = c(5000, 5000),
-  ct_col = NULL,
-  ct_spl = TRUE,
+  ct_col = "CellType",
+  ct_spl = FALSE,
   ct_filt = FALSE,
   ct_sel = NULL,
   md_list1 = NULL,
@@ -35,8 +34,6 @@ sc_coverage_plot(
 
 \item{g_region}{(optional) Region within the coverage plot to highlight.}
 
-\item{f_name}{Gene to plot expression alongside gene track.}
-
 \item{bp_window}{Vector containing the upstream and downstream limits
 for extending the plotting window (in base pairs).}
 
@@ -48,8 +45,7 @@ by an additional variable.}
 
 \item{ct_sel}{Pattern for selecting individual cell types if ct_spl == TRUE.}
 
-\item{md_list1}{Character vector of 1 metadata variable for
-stratifying peak data.}
+\item{md_list1}{Name of variable to split by group.}
 
 \item{p_type}{Final coverage plot type
 (either "ct_only", "gn_only", or "gn_ct");

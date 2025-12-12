@@ -1,4 +1,4 @@
-# WASP v4.14 (20251209)
+# WASP v4.15 (20251212)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -101,6 +101,11 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.15
+    * Updated package tutorial to v4.15.
+    * Updated sc_coverage_plot parameters and simplified input.
+    * Removed sc_coverage_plot2 function.
+    * Updated sc_dotplot documentation.
 * 4.14
     * Updated package tutorial to v4.14.
     * Updated imports for sc_process functions.
