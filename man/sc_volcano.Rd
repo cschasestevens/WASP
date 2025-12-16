@@ -7,7 +7,8 @@
 sc_volcano(
   l_deg,
   ct,
-  comp_name,
+  comp_name = NULL,
+  comp_filt = FALSE,
   gene_name = "GENE",
   filt_lab = NULL,
   diff_col = "log2FC",
@@ -25,6 +26,8 @@ sc_volcano(
 \item{ct}{A character string pattern for matching to specific cell types.}
 
 \item{comp_name}{Comparison name, provided as a character string.}
+
+\item{comp_filt}{Filter data by comparison name.}
 
 \item{gene_name}{Column name containing gene or motif names.}
 
