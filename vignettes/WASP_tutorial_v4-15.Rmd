@@ -1,8 +1,8 @@
 ---
-title: "WASP_tutorial_v4-10"
+title: "WASP_tutorial_v4-15"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{WASP_tutorial_v4-10}
+  %\VignetteIndexEntry{WASP_tutorial_v4-15}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

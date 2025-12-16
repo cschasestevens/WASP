@@ -145,6 +145,22 @@ sc_heatmap <- function(
         unique(l_cstm[l_cstm %in% rownames(d)])
       )
     )
+    if (asy == "chromvar") {
+      h <- setNames(
+        h,
+        c(
+          cl_var,
+          unlist(
+            lapply(
+              names(h[2:ncol(h)]),
+              function(x) {
+                name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
+              }
+            )
+          )
+        )
+      )
+    }
   }
   h[[1]] <- factor(
     as.character(h[[1]]),

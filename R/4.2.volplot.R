@@ -6,6 +6,7 @@
 #' @param l_deg A list of DGEA results returned by sc.DGEA().
 #' @param ct A character string pattern for matching to specific cell types.
 #' @param comp_name Comparison name, provided as a character string.
+#' @param comp_filt Filter data by comparison name.
 #' @param gene_name Column name containing gene or motif names.
 #' @param filt_lab (optional) Select labels to include on plot.
 #' @param diff_col Column name containing effect size.
@@ -37,7 +38,8 @@
 sc_volcano <- function( # nolint
   l_deg,
   ct,
-  comp_name,
+  comp_name = NULL,
+  comp_filt = FALSE,
   gene_name = "GENE",
   filt_lab = NULL,
   diff_col = "log2FC",
@@ -108,7 +110,10 @@ sc_volcano <- function( # nolint
     if(missing(ct) == FALSE && class(l_deg) == "data.frame") { # nolint
       # Subset Input data
       ld <- l_deg
-      ld <- ld[ld[["CellType"]] == ct & ld[["Comparison"]] == comp_name, ]
+      if (comp_filt == TRUE) {
+        ld <- ld[ld[["Comparison"]] == comp_name, ]
+      }
+      ld <- ld[ld[["CellType"]] == ct, ]
       # Plot function
       v <- EnhancedVolcano::EnhancedVolcano(
         ld,
@@ -155,7 +160,10 @@ sc_volcano <- function( # nolint
     if(missing(ct) == FALSE && class(l_deg) == "list") { # nolint
       # Subset Input data
       ld <- l_deg[[1]]
-      ld <- ld[ld[["CellType"]] == ct & ld[["Comparison"]] == comp_name, ]
+      if (comp_filt == TRUE) {
+        ld <- ld[ld[["Comparison"]] == comp_name, ]
+      }
+      ld <- ld[ld[["CellType"]] == ct, ]
       # Plot function
       v <- EnhancedVolcano::EnhancedVolcano(
         ld,
@@ -262,7 +270,10 @@ sc_volcano <- function( # nolint
     if(missing(ct) == FALSE && class(l_deg) == "data.frame") { # nolint
       # Subset Input data
       ld <- l_deg
-      ld <- ld[ld[["CellType"]] == ct & ld[["Comparison"]] == comp_name, ]
+      if (comp_filt == TRUE) {
+        ld <- ld[ld[["Comparison"]] == comp_name, ]
+      }
+      ld <- ld[ld[["CellType"]] == ct, ]
       # Plot function
       v <- EnhancedVolcano::EnhancedVolcano(
         ld,
@@ -310,7 +321,10 @@ sc_volcano <- function( # nolint
     if(missing(ct) == FALSE && class(l_deg) == "list") { # nolint
       # Subset Input data
       ld <- l_deg[[1]]
-      ld <- ld[ld[["CellType"]] == ct & ld[["Comparison"]] == comp_name, ]
+      if (comp_filt == TRUE) {
+        ld <- ld[ld[["Comparison"]] == comp_name, ]
+      }
+      ld <- ld[ld[["CellType"]] == ct, ]
       # Plot function
       v <- EnhancedVolcano::EnhancedVolcano(
         ld,
