@@ -30,6 +30,8 @@ sc_coverage_plot(
 
 \item{asy2}{GEX assay to use.}
 
+\item{asy_dat}{Data slot to use from the selected assay.}
+
 \item{g_name}{Gene or region to plot, provided as a character string.}
 
 \item{g_region}{(optional) Region within the coverage plot to highlight.}
@@ -42,6 +44,8 @@ Must be a factor variable.}
 
 \item{ct_spl}{Logical indicating whether cell types should be stratified
 by an additional variable.}
+
+\item{ct_filt}{Filter data by cell type?}
 
 \item{ct_sel}{Pattern for selecting individual cell types if ct_spl == TRUE.}
 

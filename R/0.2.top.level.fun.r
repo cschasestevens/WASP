@@ -12,7 +12,6 @@
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @importFrom parallel mclapply
 #' @import SeuratObject
 #' @examples
 #'
@@ -368,6 +367,7 @@ sc_visualize <- function(
 #'
 #' @param so A Seurat object.
 #' @param var_md Selected gene to plot.
+#' @param var_ct Cell type variable name.
 #' @param slot1 Name of the dimension reduction slot to plot.
 #' @param pos_leg Legend position provided as a vector (default is "none").
 #' @return A series of UMAPs and violin plot with specified overlays.

@@ -132,6 +132,7 @@ sc_atac_motifs <- function(
 #' @param dref Path to a .gtf file containing reference gene annotations.
 #' @param asy1 ATAC peaks assay to use.
 #' @param asy2 GEX assay to use.
+#' @param asy_dat Data slot to use from the selected assay.
 #' @param g_name Gene or region to plot, provided as a character string.
 #' @param g_region (optional) Region within the coverage plot to highlight.
 #' @param bp_window Vector containing the upstream and downstream limits
@@ -141,6 +142,7 @@ sc_atac_motifs <- function(
 #' @param ct_spl Logical indicating whether cell types should be stratified
 #' by an additional variable.
 #' @param ct_sel Pattern for selecting individual cell types if ct_spl == TRUE.
+#' @param ct_filt Filter data by cell type?
 #' @param md_list1 Name of variable to split by group.
 #' @param p_type Final coverage plot type
 #' (either "ct_only", "gn_only", or "gn_ct");

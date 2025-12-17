@@ -26,11 +26,18 @@ sc_cc_chrd(
 \arguments{
 \item{ccdf}{A CellChat data frame generat.}
 
-\item{title1}{Plot title, provided as a character string.}
+\item{title1}{Plot file name, provided as a character string.}
+
+\item{title2}{Plot title name.}
 
 \item{cc_type}{Type of plot to use (either "total" of "comp"). Selecting
 "total" plots the total number of interactions between cell types, whereas
 "comp" compares the fold difference between two treatment groups.}
+
+\item{col_g}{Group name to split data by if cc_type is "comp."}
+
+\item{sel_pw}{Character string of a pathway to use for filtering the
+provided CellChat object.}
 
 \item{sel_src}{vector for filtering source communication cell types.}
 
@@ -52,11 +59,6 @@ pw_sel must be specified.}
 \item{lgy}{y coordinate for legend position.}
 
 \item{cc_dir}{Directory for saving output plot.}
-
-\item{pw_sel}{Character string of a pathway to use for filtering the
-provided CellChat object.}
-
-\item{g_name}{Group name to split data by if cc_type is "comp."}
 }
 \value{
 A chord diagram displaying either pathway or individual

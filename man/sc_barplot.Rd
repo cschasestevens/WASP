@@ -22,6 +22,11 @@ sc_barplot(
 the input data.}
 
 \item{yvar}{Cell count variable name.}
+
+\item{show_counts}{Show total cell counts?}
+
+\item{count_var}{Cell count variable for plotting numerical
+values on the bar plot.}
 }
 \value{
 A bar plot grouped by a specific metadata column.

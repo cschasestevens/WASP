@@ -5,9 +5,9 @@
 #' expressed genes.
 #'
 #' @param so A Seurat object.
-#' @param title1 Heatmap title.
 #' @param filt_deg If TRUE, filters genes from a Seurat object based
 #' on differential expression in at least one group/cluster.
+#' @param top_deg Top DEGs to plot if filtering data by DEGs.
 #' @param l_cstm (optional) Filter data based on custom gene list.
 #' @param asy Assay to use (ex. "RNA").
 #' @param cl_var Character string containing the name
@@ -23,6 +23,7 @@
 #' @param rot_c Rotation of column names.
 #' @param col1 Gradient color scheme to use
 #' (must be exactly 4 colors in length).
+#' @param mark_dir Directory for saving the calculated marker gene table.
 #' @return A ComplexHeatmap object containing a top-10 marker gene heatmap.
 #' @examples
 #'
@@ -870,6 +871,8 @@ sc_dotplot <- function( # nolint
 #' for stratifying plot points.
 #' @param top_n Number of motifs to use (filters top-100 motifs per assay or
 #' specified cell type and subsequently filters by scaled activity score).
+#' @param ord1 Filter data based on order.
+#' @param ord_c Order column name.
 #' @param h_w Numeric value for heatmap width (passed to ComplexHeatmap).
 #' @param h_h Numeric value for heatmap height (passed to ComplexHeatmap).
 #' @param fs_c Numeric value for column fontsize (passed to ComplexHeatmap).

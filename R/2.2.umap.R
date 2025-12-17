@@ -17,8 +17,6 @@
 #' @import ggplot2
 #' @import Seurat
 #' @import SeuratObject
-#' @importFrom plotly add_markers plot_ly layout
-#' @importFrom htmlwidgets saveWidget
 #' @import ggrepel
 #' @examples
 #'
@@ -582,6 +580,9 @@ sc_violin <- function(
 #' @param xvar An additional metadata variable for stratifying
 #' the input data.
 #' @param yvar Cell count variable name.
+#' @param show_counts Show total cell counts?
+#' @param count_var Cell count variable for plotting numerical
+#' values on the bar plot.
 #' @return A bar plot grouped by a specific metadata column.
 #' @import ggplot2
 #' @import ggpubr
@@ -769,7 +770,7 @@ sc_umap_panel <- function(
 #' individual gene expression per cluster.
 #'
 #' @param so An object of class Seurat.
-#' @param md_var A character string indicating
+#' @param md_vars A character string indicating
 #' the clustering column for overlaying on a UMAP plot.
 #' @param g_name A character string indicating the gene name.
 #' @param col_scheme The color scheme to be used for

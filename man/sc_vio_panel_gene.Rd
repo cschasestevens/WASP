@@ -18,6 +18,9 @@ sc_vio_panel_gene(
 \arguments{
 \item{so}{An object of class Seurat.}
 
+\item{md_vars}{A character string indicating
+the clustering column for overlaying on a UMAP plot.}
+
 \item{g_name}{A character string indicating the gene name.}
 
 \item{col_scheme}{The color scheme to be used for
@@ -34,9 +37,6 @@ of the figure legend on the y-axis.}
 
 \item{asy1}{Default assay for plotting violin plot ("RNA" by default).
 for visualizing cluster gene expression.}
-
-\item{md_var}{A character string indicating
-the clustering column for overlaying on a UMAP plot.}
 }
 \description{
 Generates a series of plots to visualize

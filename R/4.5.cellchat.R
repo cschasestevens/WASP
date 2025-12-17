@@ -161,7 +161,8 @@ sc_cc_run <- function(
 #' Creates a chord diagram from a provided CellChat results data frame.
 #'
 #' @param ccdf A CellChat data frame generat.
-#' @param title1 Plot title, provided as a character string.
+#' @param title1 Plot file name, provided as a character string.
+#' @param title2 Plot title name.
 #' @param cc_type Type of plot to use (either "total" of "comp"). Selecting
 #' "total" plots the total number of interactions between cell types, whereas
 #' "comp" compares the fold difference between two treatment groups.
@@ -169,9 +170,9 @@ sc_cc_run <- function(
 #' @param sel_tar vector for filtering target communication cell types.
 #' @param spl_pw Should the data be filtered by signaling pathway? If TRUE,
 #' pw_sel must be specified.
-#' @param pw_sel Character string of a pathway to use for filtering the
+#' @param sel_pw Character string of a pathway to use for filtering the
 #' provided CellChat object.
-#' @param g_name Group name to split data by if cc_type is "comp."
+#' @param col_g Group name to split data by if cc_type is "comp."
 #' @param pw Plot width (in cm).
 #' @param ph Plot height (in cm).
 #' @param fs1 Font size (between 0.1 and 1).

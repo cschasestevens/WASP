@@ -30,6 +30,8 @@ sc_heatmap(
 \item{filt_deg}{If TRUE, filters genes from a Seurat object based
 on differential expression in at least one group/cluster.}
 
+\item{top_deg}{Top DEGs to plot if filtering data by DEGs.}
+
 \item{l_cstm}{(optional) Filter data based on custom gene list.}
 
 \item{asy}{Assay to use (ex. "RNA").}
@@ -58,7 +60,7 @@ of the cluster variable for cell type predictions.}
 \item{col1}{Gradient color scheme to use
 (must be exactly 4 colors in length).}
 
-\item{title1}{Heatmap title.}
+\item{mark_dir}{Directory for saving the calculated marker gene table.}
 }
 \value{
 A ComplexHeatmap object containing a top-10 marker gene heatmap.

@@ -17,6 +17,8 @@ sc_panel_gex(
 
 \item{slot1}{Name of the dimension reduction slot to plot.}
 
+\item{var_ct}{Cell type variable name.}
+
 \item{var_md}{Selected gene to plot.}
 
 \item{pos_leg}{Legend position provided as a vector (default is "none").}

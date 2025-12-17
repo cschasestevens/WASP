@@ -57,6 +57,10 @@ for stratifying plot points.}
 \item{top_n}{Number of motifs to use (filters top-100 motifs per assay or
 specified cell type and subsequently filters by scaled activity score).}
 
+\item{ord1}{Filter data based on order.}
+
+\item{ord_c}{Order column name.}
+
 \item{h_w}{Numeric value for heatmap width (passed to ComplexHeatmap).}
 
 \item{h_h}{Numeric value for heatmap height (passed to ComplexHeatmap).}

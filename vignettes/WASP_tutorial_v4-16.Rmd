@@ -395,9 +395,21 @@ sc_dotplot(
 )
 ```
 
-## Gene Ontology/Custom Gene Set Enrichment Analysis **(Development)**
+## Gene Ontology/Custom Gene Set Enrichment Analysis
 ```{r go-enrich, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
-
+# Run GSEA for DGEA results table
+enr_res <- sc_enrichment(
+  gmt = "ref/ReactomePathways.gmt",
+  pw_cstm = "ref/gref_v01.txt",
+  deg = "analyze/dgea_results.txt",
+  core_num = 12
+)
+head(enr_res)
+# Plot results (can either plot as whole or by cell type)
+sc_enrich_plot(
+  drich = enr_res,
+  top_pw = 25
+)
 ```
 
 ## CellChat Analysis
