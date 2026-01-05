@@ -21,7 +21,9 @@ sc_heatmap(
   rc = TRUE,
   rn = TRUE,
   col1 = col_grad(scm = 3),
-  mark_dir = "analyze/"
+  mark_dir = "analyze/",
+  mark_tab = NULL,
+  transp = FALSE
 )
 }
 \arguments{
@@ -61,6 +63,11 @@ of the cluster variable for cell type predictions.}
 (must be exactly 4 colors in length).}
 
 \item{mark_dir}{Directory for saving the calculated marker gene table.}
+
+\item{mark_tab}{Path to an existing marker table for skipping the
+calculation of marker genes if l_cstm is not provided.}
+
+\item{transp}{Transpose heatmap input matrix (FALSE by default).}
 }
 \value{
 A ComplexHeatmap object containing a top-10 marker gene heatmap.

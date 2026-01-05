@@ -24,6 +24,9 @@
 #' @param col1 Gradient color scheme to use
 #' (must be exactly 4 colors in length).
 #' @param mark_dir Directory for saving the calculated marker gene table.
+#' @param mark_tab Path to an existing marker table for skipping the
+#' calculation of marker genes if l_cstm is not provided.
+#' @param transp Transpose heatmap input matrix (FALSE by default).
 #' @return A ComplexHeatmap object containing a top-10 marker gene heatmap.
 #' @examples
 #'
@@ -50,69 +53,86 @@ sc_heatmap <- function(
   rc = TRUE,
   rn = TRUE,
   col1 = col_grad(scm = 3), # nolint
-  mark_dir = "analyze/"
+  mark_dir = "analyze/",
+  mark_tab = NULL,
+  transp = FALSE
 ) {
   d <- so
   if (is.null(l_cstm)) {
-    if (asy == "RNA" || asy == "sct" || asy == "SCT") {
-      print("Calculating marker genes for each cluster...")
-      Seurat::Idents(d) <- cl_var
-      Seurat::DefaultAssay(d) <- asy
-      if(length(SeuratObject::Layers(d)) < 2) { # nolint
-        d <- Seurat::NormalizeData(d)
+    if (is.null(mark_tab)) {
+      if (asy == "RNA" || asy == "sct" || asy == "SCT") {
+        print("Calculating marker genes for each cluster...")
+        Seurat::Idents(d) <- cl_var
+        Seurat::DefaultAssay(d) <- asy
+        if(length(SeuratObject::Layers(d)) < 2) { # nolint
+          d <- Seurat::NormalizeData(d)
+        }
+        cl_mark <- Seurat::PrepSCTFindMarkers(d)
+        cl_mark <- Seurat::FindAllMarkers(cl_mark, verbose = TRUE)
       }
-      cl_mark <- Seurat::PrepSCTFindMarkers(d)
-      cl_mark <- Seurat::FindAllMarkers(cl_mark, verbose = TRUE)
-    }
-    if(asy == "ATAC") { # nolint
-      print(
-        "Calculating marker motifs for each cluster..."
-      )
-      Seurat::Idents(d) <- cl_var
-      Seurat::DefaultAssay(d) <- asy
-      cl_mark <- Seurat::FindAllMarkers(
-        d,
-        min.pct = 0.05,
-        verbose = TRUE
-      )
-      names_motif <- data.frame(
-        "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-        "near.gene" = paste(
-          d@assays$ATAC@meta.features[["nearestGene"]],
-          seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-          sep = "."
-        ),
-        "motif" = paste(
-          d@assays$ATAC@meta.features[["seqnames"]],
-          paste(
-            d@assays$ATAC@meta.features[["start"]],
-            d@assays$ATAC@meta.features[["end"]],
-            sep = "-"
+      if(asy == "ATAC") { # nolint
+        print(
+          "Calculating marker motifs for each cluster..."
+        )
+        Seurat::Idents(d) <- cl_var
+        Seurat::DefaultAssay(d) <- asy
+        cl_mark <- Seurat::FindAllMarkers(
+          d,
+          min.pct = 0.05,
+          verbose = TRUE
+        )
+        names_motif <- data.frame(
+          "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+          "near.gene" = paste(
+            d@assays$ATAC@meta.features[["nearestGene"]],
+            seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+            sep = "."
           ),
-          sep = ":"
+          "motif" = paste(
+            d@assays$ATAC@meta.features[["seqnames"]],
+            paste(
+              d@assays$ATAC@meta.features[["start"]],
+              d@assays$ATAC@meta.features[["end"]],
+              sep = "-"
+            ),
+            sep = ":"
+          )
+        )
+        cl_mark <- dplyr::left_join(
+          cl_mark,
+          names_motif,
+          by = "gene"
+        )
+      }
+      ## Marker gene input matrix (top10 per cell type)
+      if(class(cl_mark[["cluster"]]) == "character") { # nolint
+        cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
+      }
+      cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
+      cl_mark <- dplyr::group_by(
+        cl_mark,
+        .data[["CellType.no"]] # nolint
+      )
+      write.table(
+        cl_mark,
+        paste(mark_dir, "markers.txt", sep = ""),
+        sep = "\t",
+        row.names = FALSE
+      )
+    }
+    if (!is.null(mark_tab)) {
+      cl_mark <- read.table(
+        mark_tab,
+        header = TRUE,
+        sep = "\t"
+      )
+      cl_mark[["cluster"]] <- factor(
+        as.character(cl_mark[["cluster"]]),
+        levels = gtools::mixedsort(
+          unique(as.character(cl_mark[["cluster"]]))
         )
       )
-      cl_mark <- dplyr::left_join(
-        cl_mark,
-        names_motif,
-        by = "gene"
-      )
     }
-    ## Marker gene input matrix (top10 per cell type)
-    if(class(cl_mark[["cluster"]]) == "character") { # nolint
-      cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
-    }
-    cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
-    cl_mark <- dplyr::group_by(
-      cl_mark,
-      .data[["CellType.no"]] # nolint
-    )
-    write.table(
-      cl_mark,
-      paste(mark_dir, "markers.txt", sep = ""),
-      sep = "\t",
-      row.names = FALSE
-    )
     ### DEGs per cluster
     if (filt_deg == TRUE) {
       cl_mark <- cl_mark[cl_mark[["p_val_adj"]] < 0.05, ]
@@ -217,6 +237,9 @@ sc_heatmap <- function(
     )
     ]
   )
+  if (transp == TRUE) {
+    h_in <- t(h_in)
+  }
   fun_hm_col <- circlize::colorRamp2(
     c(
       qs[[1]],
