@@ -1,4 +1,4 @@
-# WASP v4.16 (20251217)
+# WASP v4.17 (20260106)
 
 Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
 
@@ -100,6 +100,11 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.17
+    * Removed Seurat VlnPlot function from package functions to resolve PackageCheck() error derived from Seurat.
+    * Fixed issue in sc_heatmap to include annotated transcription factor names in the final plot.
+    * Updated sc_recluster documentation.
+    * Fixed compatibility issue in scparam related to different column names used in formatting the reference .gtf file.
 * 4.16
     * Updated function documentation.
     * Updated tutorial to v4.16.

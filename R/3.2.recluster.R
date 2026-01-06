@@ -4,7 +4,7 @@
 #' of a subsetted Seurat object subset.
 #' Subsets are determined based on cell groups.
 #'
-#' @param so An object of class Seurat.
+#' @param so A Seurat object.
 #' @param rc_type Data set type being reclustered (either "GEX" or "Mult").
 #' @param ct_col Column containing cell type information.
 #' @param slot1 Assay from Seurat object subset to use (ex. "RNA").
@@ -29,6 +29,7 @@
 #' @param col1 Gradient color scheme to use
 #' (must be exactly 4 colors in length).
 #' @param fsize Future size for cell type predictions (in GB).
+#' @param mdir Directory for saving marker gene table.
 #' @return A reclustered Seurat Object with summary plots, proportion tables,
 #' and marker gene lists.
 #' @examples
@@ -61,6 +62,7 @@ sc_recluster <- function(
   cl_r = FALSE,
   rot_c = 45,
   col1 = col_grad(scm = 3),
+  mdir = "analyze/",
   fsize = 45000
 ) {
   # Load objects
@@ -120,16 +122,14 @@ sc_recluster <- function(
     )
     ## Reclustering Performance
     print(paste("---- Step 4: QC and marker gene calculation ----"))
-    d1qc_pre <- Seurat::VlnPlot(
-      object = d,
-      features = c(
+    d1qc_pre <- sc_violin(
+      so = d,
+      ct_col = "recluster",
+      gene_col = c(
         "nFeature_RNA",
         "nCount_RNA",
         "percent.mt"
-      ),
-      layer = "counts",
-      ncol = 3,
-      pt.size = 0.2
+      )
     )
     # Marker gene heatmap
     d_hmap <- sc_heatmap( # nolint
@@ -231,19 +231,17 @@ sc_recluster <- function(
     )
     ## Reclustering Performance
     print(paste("---- Step 5: QC and marker gene calculation ----"))
-    d1qc_pre <- Seurat::VlnPlot(
-      object = d,
-      features = c(
+    d1qc_pre <- sc_violin(
+      so = d,
+      ct_col = "recluster",
+      gene_col = c(
         "nFeature_RNA",
         "nCount_RNA",
         "percent.mt",
         "nCount_ATAC",
         "TSS.enrichment",
         "nucleosome_signal"
-      ),
-      layer = "counts",
-      ncol = 4,
-      pt.size = 0.2
+      )
     )
     # Marker gene heatmap
     d_hmap <- sc_heatmap( # nolint
@@ -257,7 +255,8 @@ sc_recluster <- function(
       cl_c = cl_c,
       cl_r = cl_r,
       rot_c = rot_c,
-      col1 = col1
+      col1 = col1,
+      mark_dir = mdir
     )
     # Cell type predictions
     print(paste("---- Step 6: Cell type predictions ----"))

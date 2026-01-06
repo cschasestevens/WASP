@@ -139,6 +139,8 @@ sc_multiome_params <- function(
     ref1 <- paste(dir1, gtf_path, sep = "")
     ref_gene1 <- rtracklayer::import(ref1)
     ref_gene1$gene_biotype <- ref_gene1$gene_type
+    ## Add tx_id column for compatibility
+    ref_gene1$tx_id <- ref_gene1$transcript_id
     GenomeInfoDb::seqlevelsStyle(ref_gene1) <- "UCSC"
     rformat <- GenomeInfoDb::keepStandardChromosomes(
       ref_gene1,

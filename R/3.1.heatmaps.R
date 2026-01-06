@@ -157,6 +157,22 @@ sc_heatmap <- function(
         unique(cl_mark[["gene"]])
       )
     )
+    if (asy == "chromvar") {
+      h <- setNames(
+        h,
+        c(
+          cl_var,
+          unlist(
+            lapply(
+              names(h[2:ncol(h)]),
+              function(x) {
+                name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
+              }
+            )
+          )
+        )
+      )
+    }
   }
   if (!is.null(l_cstm)) {
     h <- SeuratObject::FetchData(

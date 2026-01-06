@@ -128,13 +128,14 @@ sc_process_file <- function(
     object = d,
     pattern = "^MT-"
   )
-  plot_pre_qc <- Seurat::VlnPlot(
-    object = d,
-    features = c("nFeature_RNA",
-                 "nCount_RNA",
-                 "percent.mt"),
-    ncol = 3,
-    pt.size = 0.2
+  plot_pre_qc <- sc_violin(
+    so = d,
+    ct_col = "seurat_clusters",
+    gene_col = c(
+      "nFeature_RNA",
+      "nCount_RNA",
+      "percent.mt"
+    )
   )
   d_filt <- BiocGenerics::subset(
     d,
@@ -142,13 +143,14 @@ sc_process_file <- function(
       nFeature_RNA < 7000 &  # nolint
       percent.mt < 20 # nolint
   )
-  plot_pos_qc <- Seurat::VlnPlot(
-    object = d_filt,
-    features = c("nFeature_RNA",
-                 "nCount_RNA",
-                 "percent.mt"),
-    ncol = 3,
-    pt.size = 0.2
+  plot_pos_qc <- sc_violin(
+    so = d_filt,
+    ct_col = "seurat_clusters",
+    gene_col = c(
+      "nFeature_RNA",
+      "nCount_RNA",
+      "percent.mt"
+    )
   )
   # Log normalize data
   d_norm <- Seurat::NormalizeData(
@@ -561,19 +563,17 @@ sc_multiome_process <- function(
   d1 <- Signac::TSSEnrichment(d1)
   # QC plot
   print("---- Step 8: Run QC to remove cells based on threshold ----")
-  d1qc_pre <- Seurat::VlnPlot(
-    object = d1,
-    features = c(
+  d1qc_pre <- sc_violin(
+    so = d1,
+    ct_col = "seurat_clusters",
+    gene_col = c(
       "nFeature_RNA",
       "nCount_RNA",
       "percent.mt",
       "nCount_ATAC",
       "TSS.enrichment",
       "nucleosome_signal"
-    ),
-    layer = "counts",
-    ncol = 3,
-    pt.size = 0.2
+    )
   )
   d1f <- d1[
     ,
@@ -586,19 +586,17 @@ sc_multiome_process <- function(
   ]
   remove(d1)
   gc(reset = TRUE)
-  d1qc_pst <- Seurat::VlnPlot(
-    object = d1f,
-    features = c(
+  d1qc_pst <- sc_violin(
+    so = d1f,
+    ct_col = "seurat_clusters",
+    gene_col = c(
       "nFeature_RNA",
       "nCount_RNA",
       "percent.mt",
       "nCount_ATAC",
       "TSS.enrichment",
       "nucleosome_signal"
-    ),
-    layer = "counts",
-    ncol = 3,
-    pt.size = 0.2
+    )
   )
   # Call ATAC peaks using default parameters
   ## NOTE: Ensure conda is activated otherwise MACS3
