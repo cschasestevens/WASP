@@ -25,11 +25,12 @@ sc_recluster(
   cl_r = FALSE,
   rot_c = 45,
   col1 = col_grad(scm = 3),
+  mdir = "analyze/",
   fsize = 45000
 )
 }
 \arguments{
-\item{so}{An object of class Seurat.}
+\item{so}{A Seurat object.}
 
 \item{rc_type}{Data set type being reclustered (either "GEX" or "Mult").}
 
@@ -72,6 +73,8 @@ This parameter is automatically set to TRUE for multiome datasets.}
 
 \item{col1}{Gradient color scheme to use
 (must be exactly 4 colors in length).}
+
+\item{mdir}{Directory for saving marker gene table.}
 
 \item{fsize}{Future size for cell type predictions (in GB).}
 }

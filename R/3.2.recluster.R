@@ -152,7 +152,8 @@ sc_recluster <- function(
       so = d,
       md_list = c(sid),
       parl = FALSE,
-      f_size = fsize
+      f_size = fsize,
+      cl_var = "recluster"
     )
     ## Visualize Clusters
     d_umap1 <- sc_umap_panel( # nolint
@@ -219,7 +220,7 @@ sc_recluster <- function(
       cluster.name = "recluster",
       algorithm = 3,
       verbose = TRUE,
-      resolution = 0.5
+      resolution = res1
     )
     d@meta.data[["recluster"]] <- factor(
       as.numeric(d@meta.data[["recluster"]]),
@@ -265,7 +266,8 @@ sc_recluster <- function(
       so = d,
       md_list = c(sid),
       parl = FALSE,
-      f_size = fsize
+      f_size = fsize,
+      cl_var = "recluster"
     )
     ## Visualize Clusters
     d_umap1 <- sc_umap_panel( # nolint

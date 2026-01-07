@@ -1,6 +1,6 @@
-# WASP v4.17 (20260106)
+# WASP v4.18 (20260107)
 
-Processing and Analysis of Single-cell RNA-Sequencing and Single-cell ATAC-Sequencing Datasets
+Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
 ## Description
 
@@ -89,7 +89,7 @@ browseVignettes("WASP")
 
 ```
 # Type function name after package name
-?WASP::sc_top10_marker_heatmap
+?WASP::sc_umap()
 ```
 
 ## Authors
@@ -100,6 +100,9 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.18
+    * Fixed sc_predict integration with sc_recluster where seurat_clusters is selected instead of the actual reclustering results.
+    * Fixed multiome reclustering within sc_recluster to include the clustering resolution parameter.
 * 4.17
     * Removed Seurat VlnPlot function from package functions to resolve PackageCheck() error derived from Seurat.
     * Fixed issue in sc_heatmap to include annotated transcription factor names in the final plot.
