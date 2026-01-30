@@ -36,6 +36,7 @@ Suggests:
   plotly,
   htmlwidgets,
   MAST
+biocViews:
 Imports:
   Signac,
   ggplot2,

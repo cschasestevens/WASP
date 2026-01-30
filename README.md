@@ -1,4 +1,4 @@
-# WASP v4.18 (20260107)
+# WASP v4.19 (20260130)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -100,6 +100,9 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.19
+    * Bioconductor dependencies are now automatically installed along with package.
+    * Added option to plot DGEA/DA results with sc_heatmap function.
 * 4.18
     * Fixed sc_predict integration with sc_recluster where seurat_clusters is selected instead of the actual reclustering results.
     * Fixed multiome reclustering within sc_recluster to include the clustering resolution parameter.

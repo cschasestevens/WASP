@@ -5,6 +5,11 @@
 #' expressed genes.
 #'
 #' @param so A Seurat object.
+#' @param deg_plot Generate heatmap based on DGEA/DA results instead
+#' of expression/activity scores from a Seurat object. Supports DGEA/DA
+#' result tables generated from sc_diff.
+#' @param deg_sig Should only genes with statistically significant
+#' differential expression/activity be plotted?
 #' @param filt_deg If TRUE, filters genes from a Seurat object based
 #' on differential expression in at least one group/cluster.
 #' @param top_deg Top DEGs to plot if filtering data by DEGs.
@@ -37,7 +42,9 @@
 #'
 #' @export
 sc_heatmap <- function(
-  so,
+  so = NULL,
+  deg_plot = NULL,
+  deg_sig = FALSE,
   filt_deg = TRUE,
   top_deg = 10,
   l_cstm = NULL,
@@ -52,188 +59,227 @@ sc_heatmap <- function(
   rot_c = 45,
   rc = TRUE,
   rn = TRUE,
-  col1 = col_grad(scm = 3), # nolint
+  col1 = col_grad(scm = 5), # nolint
   mark_dir = "analyze/",
   mark_tab = NULL,
   transp = FALSE
 ) {
-  d <- so
-  if (is.null(l_cstm)) {
-    if (is.null(mark_tab)) {
-      if (asy == "RNA" || asy == "sct" || asy == "SCT") {
-        print("Calculating marker genes for each cluster...")
-        Seurat::Idents(d) <- cl_var
-        Seurat::DefaultAssay(d) <- asy
-        if(length(SeuratObject::Layers(d)) < 2) { # nolint
-          d <- Seurat::NormalizeData(d)
+  if (is.null(deg_plot)) {
+    d <- so
+    if (is.null(l_cstm)) {
+      if (is.null(mark_tab)) {
+        if (asy == "RNA" || asy == "sct" || asy == "SCT") {
+          print("Calculating marker genes for each cluster...")
+          Seurat::Idents(d) <- cl_var
+          Seurat::DefaultAssay(d) <- asy
+          if(length(SeuratObject::Layers(d)) < 2) { # nolint
+            d <- Seurat::NormalizeData(d)
+          }
+          cl_mark <- Seurat::PrepSCTFindMarkers(d)
+          cl_mark <- Seurat::FindAllMarkers(cl_mark, verbose = TRUE)
         }
-        cl_mark <- Seurat::PrepSCTFindMarkers(d)
-        cl_mark <- Seurat::FindAllMarkers(cl_mark, verbose = TRUE)
-      }
-      if(asy == "ATAC") { # nolint
-        print(
-          "Calculating marker motifs for each cluster..."
-        )
-        Seurat::Idents(d) <- cl_var
-        Seurat::DefaultAssay(d) <- asy
-        cl_mark <- Seurat::FindAllMarkers(
-          d,
-          min.pct = 0.05,
-          verbose = TRUE
-        )
-        names_motif <- data.frame(
-          "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-          "near.gene" = paste(
-            d@assays$ATAC@meta.features[["nearestGene"]],
-            seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
-            sep = "."
-          ),
-          "motif" = paste(
-            d@assays$ATAC@meta.features[["seqnames"]],
-            paste(
-              d@assays$ATAC@meta.features[["start"]],
-              d@assays$ATAC@meta.features[["end"]],
-              sep = "-"
+        if(asy == "ATAC") { # nolint
+          print(
+            "Calculating marker motifs for each cluster..."
+          )
+          Seurat::Idents(d) <- cl_var
+          Seurat::DefaultAssay(d) <- asy
+          cl_mark <- Seurat::FindAllMarkers(
+            d,
+            min.pct = 0.05,
+            verbose = TRUE
+          )
+          names_motif <- data.frame(
+            "gene" = seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+            "near.gene" = paste(
+              d@assays$ATAC@meta.features[["nearestGene"]],
+              seq.int(1, nrow(d@assays$ATAC@meta.features), 1),
+              sep = "."
             ),
-            sep = ":"
+            "motif" = paste(
+              d@assays$ATAC@meta.features[["seqnames"]],
+              paste(
+                d@assays$ATAC@meta.features[["start"]],
+                d@assays$ATAC@meta.features[["end"]],
+                sep = "-"
+              ),
+              sep = ":"
+            )
           )
-        )
-        cl_mark <- dplyr::left_join(
+          cl_mark <- dplyr::left_join(
+            cl_mark,
+            names_motif,
+            by = "gene"
+          )
+        }
+        ## Marker gene input matrix (top10 per cell type)
+        if(class(cl_mark[["cluster"]]) == "character") { # nolint
+          cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
+        }
+        cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
+        cl_mark <- dplyr::group_by(
           cl_mark,
-          names_motif,
-          by = "gene"
+          .data[["CellType.no"]] # nolint
+        )
+        write.table(
+          cl_mark,
+          paste(mark_dir, "markers.txt", sep = ""),
+          sep = "\t",
+          row.names = FALSE
         )
       }
-      ## Marker gene input matrix (top10 per cell type)
-      if(class(cl_mark[["cluster"]]) == "character") { # nolint
-        cl_mark <- cl_mark[gtools::mixedorder(cl_mark[["cluster"]]), ]
-      }
-      cl_mark[["CellType.no"]] <- cl_mark[["cluster"]]
-      cl_mark <- dplyr::group_by(
-        cl_mark,
-        .data[["CellType.no"]] # nolint
-      )
-      write.table(
-        cl_mark,
-        paste(mark_dir, "markers.txt", sep = ""),
-        sep = "\t",
-        row.names = FALSE
-      )
-    }
-    if (!is.null(mark_tab)) {
-      cl_mark <- read.table(
-        mark_tab,
-        header = TRUE,
-        sep = "\t"
-      )
-      cl_mark[["cluster"]] <- factor(
-        as.character(cl_mark[["cluster"]]),
-        levels = gtools::mixedsort(
-          unique(as.character(cl_mark[["cluster"]]))
+      if (!is.null(mark_tab)) {
+        cl_mark <- read.table(
+          mark_tab,
+          header = TRUE,
+          sep = "\t"
         )
-      )
+        cl_mark[["cluster"]] <- factor(
+          as.character(cl_mark[["cluster"]]),
+          levels = gtools::mixedsort(
+            unique(as.character(cl_mark[["cluster"]]))
+          )
+        )
+      }
+      ### DEGs per cluster
+      if (filt_deg == TRUE) {
+        cl_mark <- cl_mark[cl_mark[["p_val_adj"]] < 0.05, ]
+        cl_mark <- dplyr::group_by(
+          cl_mark,
+          .data[["cluster"]] # nolint
+        )
+        cl_mark <- dplyr::slice_max(
+          cl_mark,
+          order_by = .data[["avg_log2FC"]],
+          n = top_deg
+        )
+      }
     }
-    ### DEGs per cluster
-    if (filt_deg == TRUE) {
-      cl_mark <- cl_mark[cl_mark[["p_val_adj"]] < 0.05, ]
-      cl_mark <- dplyr::group_by(
-        cl_mark,
-        .data[["cluster"]] # nolint
-      )
-      cl_mark <- dplyr::slice_max(
-        cl_mark,
-        order_by = .data[["avg_log2FC"]],
-        n = top_deg
-      )
-    }
-  }
-  Seurat::DefaultAssay(d) <- asy
-  ### Subset seurat and scale
-  if (is.null(l_cstm)) {
-    h <- SeuratObject::FetchData(
-      d,
-      vars = c(
-        cl_var,
-        unique(cl_mark[["gene"]])
-      )
-    )
-    if (asy == "chromvar") {
-      h <- setNames(
-        h,
-        c(
+    Seurat::DefaultAssay(d) <- asy
+    ### Subset seurat and scale
+    if (is.null(l_cstm)) {
+      h <- SeuratObject::FetchData(
+        d,
+        vars = c(
           cl_var,
-          unlist(
-            lapply(
-              names(h[2:ncol(h)]),
-              function(x) {
-                name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-              }
+          unique(cl_mark[["gene"]])
+        )
+      )
+      if (asy == "chromvar") {
+        h <- setNames(
+          h,
+          c(
+            cl_var,
+            unlist(
+              lapply(
+                names(h[2:ncol(h)]),
+                function(x) {
+                  name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
+                }
+              )
             )
           )
         )
-      )
+      }
     }
-  }
-  if (!is.null(l_cstm)) {
-    h <- SeuratObject::FetchData(
-      d,
-      vars = c(
-        cl_var,
-        unique(l_cstm[l_cstm %in% rownames(d)])
-      )
-    )
-    if (asy == "chromvar") {
-      h <- setNames(
-        h,
-        c(
+    if (!is.null(l_cstm)) {
+      h <- SeuratObject::FetchData(
+        d,
+        vars = c(
           cl_var,
-          unlist(
-            lapply(
-              names(h[2:ncol(h)]),
-              function(x) {
-                name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-              }
+          unique(l_cstm[l_cstm %in% rownames(d)])
+        )
+      )
+      if (asy == "chromvar") {
+        h <- setNames(
+          h,
+          c(
+            cl_var,
+            unlist(
+              lapply(
+                names(h[2:ncol(h)]),
+                function(x) {
+                  name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
+                }
+              )
             )
           )
         )
-      )
+      }
     }
+  }
+  if (!is.null(deg_plot)) {
+    h <- deg_plot
   }
   h[[1]] <- factor(
     as.character(h[[1]]),
     levels = gtools::mixedsort(unique(as.character(h[[1]])))
   )
   ### Scale and plot average expression/accessibility per cell type
-  h_in <- scale(
-    as.matrix(
+  if (is.null(deg_plot)) {
+    h_in <- scale(
+      as.matrix(
+        magrittr::set_rownames(
+          setNames(
+            as.data.frame(
+              lapply(
+                h[, 2:ncol(
+                  h
+                )],
+                function(x) {
+                  dplyr::select(
+                    aggregate(
+                      x,
+                      list(
+                        h[, 1]
+                      ),
+                      FUN = mean
+                    ),
+                    c(2)
+                  )
+                }
+              )
+            ),
+            names(h[, 2:ncol(h)])
+          ),
+          levels(h[, 1])
+        )
+      ),
+      center = TRUE
+    )
+  }
+  if (!is.null(deg_plot)) {
+    # Format DGEA/DA results as matrix
+    # and include only significant genes
+    if (deg_sig == TRUE) {
+      h_in <- h[h[["H.qval"]] < 0.05, ]
+    }
+    if (deg_sig == FALSE) {
+      h_in <- h
+    }
+    # reassign factor levels
+    h_in[["CellType"]] <- factor(
+      as.character(h_in[["CellType"]]),
+      levels = gtools::mixedsort(
+        unique(as.character(h_in[["CellType"]]))
+      )
+    )
+    # Create matrix
+    h_in <- reshape2::dcast(
+      h_in[, c("CellType", "GENE", "log2FC")],
+      CellType ~ GENE,
+      value.var = "log2FC"
+    )
+    h_in <- as.matrix(
       magrittr::set_rownames(
         setNames(
-          as.data.frame(
-            lapply(
-              h[, 2:ncol(
-                h
-              )],
-              function(x) {
-                dplyr::select(
-                  aggregate(
-                    x,
-                    list(
-                      h[, 1]
-                    ),
-                    FUN = mean
-                  ),
-                  c(2)
-                )
-              }
-            )
-          ),
-          names(h[, 2:ncol(h)])
+          h_in[, 2:ncol(h_in)],
+          names(h_in[, 2:ncol(h_in)])
         ),
-        levels(h[, 1])
+        levels(h_in[[1]])
       )
-    ),
-    center = TRUE
-  )
+    )
+  }
   qs <- quantile(
     h_in,
     probs = c(
@@ -242,29 +288,42 @@ sc_heatmap <- function(
     ),
     na.rm = TRUE
   )
-  h_in <- as.matrix(
-    as.data.frame(h_in)[, unlist(
-      lapply(
-        seq.int(1, ncol(as.data.frame(h_in)), 1),
-        function(x) {
-          !anyNA(as.data.frame(h_in)[x])
-        }
+  if (is.null(deg_plot)) {
+    h_in <- as.matrix(
+      as.data.frame(h_in)[, unlist(
+        lapply(
+          seq.int(1, ncol(as.data.frame(h_in)), 1),
+          function(x) {
+            !anyNA(as.data.frame(h_in)[x])
+          }
+        )
       )
+      ]
     )
-    ]
-  )
+  }
   if (transp == TRUE) {
     h_in <- t(h_in)
   }
-  fun_hm_col <- circlize::colorRamp2(
-    c(
-      qs[[1]],
-      (qs[[1]]) / 2,
-      (qs[[2]]) / 2,
-      qs[[2]]
-    ),
-    colors = col1
-  )
+  if (qs[[1]] < 0) {
+    fun_hm_col <- circlize::colorRamp2(
+      c(
+        qs[[1]],
+        0,
+        qs[[2]]
+      ),
+      colors = col1
+    )
+  }
+  if (qs[[1]] > 0) {
+    fun_hm_col <- circlize::colorRamp2(
+      c(
+        qs[[1]],
+        round(mean(c(qs[[1]], qs[[2]])), digits = 0),
+        qs[[2]]
+      ),
+      colors = col_grad(scm = 4)
+    )
+  }
   # Create Plot
   h_out <- ComplexHeatmap::Heatmap(
     h_in,
