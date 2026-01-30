@@ -1,8 +1,8 @@
 ---
-title: "WASP_tutorial_v4-16"
+title: "WASP_tutorial_v4-19"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{WASP_tutorial_v4-16}
+  %\VignetteIndexEntry{WASP_tutorial_v4-19}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -19,12 +19,12 @@ knitr::opts_chunk$set(
 ### - Also requires a valid annotation and reference genome file for mapping reads/fragments
 ###   - Recommended to use files from GENCODE (works natively with sc_multiome_params())
 ### - Example data are available from the 10X website.
-```{r inst, echo=T, results=T, message=F, warning=F,eval=FALSE}
+```{r inst, echo=T, results=T, message=F, warning=F, eval=FALSE}
 #---- Load data and session objects (if already processed and annotated) ----
 # Set working directory with setwd()
 ## Change to relative working directory path on local machine
 getwd()
-setwd("/home/ncsteven/analyze/Hiro.CF.multiome/WASP_test")
+setwd("/path/to/your/directory")
 # Load libraries
 library(WASP)
 library(Seurat)
@@ -40,8 +40,8 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 ## - path to genome reference file
 scparam <- sc_multiome_params(
   study_md = data.frame(
-    "Code" = c("DD023T", "KK010T"),
-    "Group" = factor(c("NonCF", "CF"), levels = c("NonCF", "CF"))
+    "Code" = c("Sample1", "Sample2"),
+    "Group" = factor(c("G1", "G2"), levels = c("G1", "G2"))
   ),
   gtf_path = "gencode.v45.primary_assembly.annotation.gtf",
   fa_path = "GRCh38.primary_assembly.genome.fa"
@@ -276,7 +276,7 @@ saveRDS(scre2, "analyze/scdata_reclus.rds")
 sc_panel_gex(
   so = scre2,
   slot1 = "re_wnn_umap",
-  var_md = "SCGB3A2"
+  var_md = "TypeGeneName"
 )
 ```
 
@@ -289,8 +289,8 @@ d1 <- readRDS("analyze/scdata_reclus.rds")
 ## Perform test
 scdgea <- sc_diff(
   so = d1,
-  mast_comp = "GroupNonCF",
-  mast_name = "NonCF vs. CF",
+  mast_comp = "GroupG1",
+  mast_name = "G1 vs. G2",
   form1 = c("Group", "nFeature_SCT"),
   cores = 4
 )
@@ -316,8 +316,8 @@ lapply(
 ## Perform test
 scdact <- sc_diff(
   so = d1,
-  mast_comp = "GroupNonCF",
-  mast_name = "NonCF vs. CF",
+  mast_comp = "GroupG1",
+  mast_name = "G1 vs. G2",
   form1 = c("Group", "nFeature_SCT"),
   cores = 4,
   asy = "chromvar",
@@ -351,11 +351,11 @@ lapply(
 sc_volcano(
   l_deg = scdgea[["results"]],
   ct = "1.Secretory",
-  comp_name = "NonCF vs. CF",
+  comp_name = "G1 vs. G2",
   x_title = paste(
-    "Higher Activity in CF",
+    "Higher Activity in G2",
     "<----->",
-    "Higher Activity in nonCF",
+    "Higher Activity in G1",
     sep = " "
   )
 )
@@ -363,12 +363,12 @@ sc_volcano(
 sc_volcano(
   l_deg = scdact[["results"]],
   ct = "1.Secretory",
-  comp_name = "NonCF vs. CF",
+  comp_name = "G1 vs. G2",
   gene_name = "TF",
   x_title = paste(
-    "Higher Activity in CF",
+    "Higher Activity in G2",
     "<----->",
-    "Higher Activity in nonCF",
+    "Higher Activity in G1",
     sep = " "
   )
 )
@@ -381,7 +381,7 @@ sc_volcano(
 sc_coverage_plot(
   so = d1,
   dref = scparam[["ref.gtf"]],
-  g_name = "SCGB1A1"
+  g_name = "TypeGeneName"
 )
 ```
 
@@ -390,7 +390,7 @@ sc_coverage_plot(
 # Generate dotplot from dgea/da list or from custom gene list
 sc_dotplot(
   so = d1,
-  l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
+  l_gene = c("Gene1", "Gene2", "Gene3", "Gene4", "Gene5"),
   ct_var = "CellType"
 )
 ```

@@ -5,7 +5,9 @@
 \title{General Heatmap}
 \usage{
 sc_heatmap(
-  so,
+  so = NULL,
+  deg_plot = NULL,
+  deg_sig = FALSE,
   filt_deg = TRUE,
   top_deg = 10,
   l_cstm = NULL,
@@ -20,7 +22,7 @@ sc_heatmap(
   rot_c = 45,
   rc = TRUE,
   rn = TRUE,
-  col1 = col_grad(scm = 3),
+  col1 = col_grad(scm = 5),
   mark_dir = "analyze/",
   mark_tab = NULL,
   transp = FALSE
@@ -28,6 +30,13 @@ sc_heatmap(
 }
 \arguments{
 \item{so}{A Seurat object.}
+
+\item{deg_plot}{Generate heatmap based on DGEA/DA results instead
+of expression/activity scores from a Seurat object. Supports DGEA/DA
+result tables generated from sc_diff.}
+
+\item{deg_sig}{Should only genes with statistically significant
+differential expression/activity be plotted?}
 
 \item{filt_deg}{If TRUE, filters genes from a Seurat object based
 on differential expression in at least one group/cluster.}

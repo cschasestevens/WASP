@@ -101,6 +101,7 @@ browseVignettes("WASP")
 
 ## Version History
 * 4.19
+    * Updated tutorial to v4.19.
     * Bioconductor dependencies are now automatically installed along with package.
     * Added option to plot DGEA/DA results with sc_heatmap function.
 * 4.18
