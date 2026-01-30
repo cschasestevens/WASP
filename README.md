@@ -78,6 +78,8 @@ devtools::install_github(
 )
 ```
 
+* Please note that processing of 10X multiome files requires a local installation of hdf5r and Python (v3.9-3.12) with MACS3 installed. See https://macs3-project.github.io/MACS/docs/INSTALL.html for instructions to install MACS3 within Python. This step is not necessary if only analyzing processed multiome datasets.
+
 ## Help
 * Browse vignettes by running the following:
 
