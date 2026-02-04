@@ -185,6 +185,15 @@ sc_coverage_plot <- function( # nolint
   md_list1 = NULL,
   p_type = "ct_only"
 ) {
+  # Configure seqinfo function for compatibility with new versions
+  # of Bioconductor packages
+  setMethod(
+    "seqinfo",
+    signature(x = "ChromatinAssay"),
+    function(x) {
+      GenomeInfoDb::seqinfo(x@ranges)
+    }
+  )
   # Set parameters
   d <- so
   a1 <- asy1
@@ -305,56 +314,115 @@ sc_coverage_plot <- function( # nolint
   # Create final plots
   ## Combine group variable and cell type panels
   if (plt == "gn_ct") {
-    p1 <- Signac::CoveragePlot(
-      object = d2,
-      region = gn,
-      features = gn,
-      expression.assay = a2,
-      expression.slot = adat,
-      annotation = TRUE,
-      peaks = TRUE,
-      links = lnk,
-      idents = unique(d2@meta.data[[ctc2]]),
-      extend.upstream = bpw[[1]],
-      extend.downstream = bpw[[2]],
-      region.highlight = g_reg
-    ) &
-      ggplot2::scale_fill_manual(values = col_univ()) & # nolint
-      ggplot2::theme(
-        axis.title.x = ggplot2::element_text(size = 8),
-        axis.title.y = ggplot2::element_text(size = 8),
-        axis.text.x = ggplot2::element_text(size = 6),
-        plot.margin = ggplot2::unit(
-          c(0.25, 0.05, 0.25, 0.25),
-          "cm"
+    if (class(d2@meta.data[[ctc2]]) == "factor") {
+      p1 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = levels(d2@meta.data[[ctc2]]),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
         )
-      )
+    }
+    if (class(d2@meta.data[[ctc2]]) == "character") {
+      p1 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = sort(unique(d2@meta.data[[ctc2]])),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
+        )
+    }
     Seurat::Idents(d2) <- mdl
-    p2 <- Signac::CoveragePlot(
-      object = d2,
-      region = gn,
-      features = gn,
-      expression.assay = a2,
-      expression.slot = adat,
-      annotation = TRUE,
-      peaks = TRUE,
-      links = lnk,
-      idents = sort(unique(d2@meta.data[[mdl]])),
-      extend.upstream = bpw[[1]],
-      extend.downstream = bpw[[2]],
-      region.highlight = g_reg
-    ) &
-      ggplot2::scale_fill_manual(values = col_univ()) & # nolint
-      ggplot2::theme(
-        axis.title.x = ggplot2::element_text(size = 8),
-        axis.title.y = ggplot2::element_text(size = 8),
-        strip.text = ggplot2::element_text(size = 6),
-        axis.text.x = ggplot2::element_text(size = 6),
-        plot.margin = ggplot2::unit(
-          c(0.25, 0, 0.25, 0),
-          "cm"
+    if (class(d2@meta.data[[mdl]]) == "factor") {
+      p2 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = levels(d2@meta.data[[mdl]]),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
         )
-      )
+    }
+    if (class(d2@meta.data[[mdl]]) == "character") {
+      p2 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = sort(unique(d2@meta.data[[mdl]])),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
+        )
+    }
     p_comb <- p2 +
       p1 +
       patchwork::plot_layout(ncol = 1, heights = c(0.75, 4)) + # nolint
@@ -367,59 +435,117 @@ sc_coverage_plot <- function( # nolint
   }
   if (plt == "gn_only") {
     Seurat::Idents(d2) <- mdl
-    p2 <- Signac::CoveragePlot(
-      object = d2,
-      region = gn,
-      features = gn,
-      expression.assay = a2,
-      expression.slot = adat,
-      annotation = TRUE,
-      peaks = TRUE,
-      links = lnk,
-      idents = sort(unique(d2@meta.data[[mdl]])),
-      extend.upstream = bpw[[1]],
-      extend.downstream = bpw[[2]],
-      region.highlight = g_reg
-    ) &
-      ggplot2::scale_fill_manual(values = col_univ()) & # nolint
-      ggplot2::theme(
-        axis.title.x = ggplot2::element_text(size = 8),
-        axis.title.y = ggplot2::element_text(size = 8),
-        strip.text = ggplot2::element_text(size = 6),
-        axis.text.x = ggplot2::element_text(size = 6),
-        plot.margin = ggplot2::unit(
-          c(0.25, 0, 0.25, 0),
-          "cm"
+    if (class(d2@meta.data[[mdl]]) == "factor") {
+      p2 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = levels(d2@meta.data[[mdl]]),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
         )
-      )
+    }
+    if (class(d2@meta.data[[mdl]]) == "character") {
+      p2 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = sort(unique(d2@meta.data[[mdl]])),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
+        )
+    }
     p_comb <- p2
   }
   if (plt == "ct_only") {
-    p1 <- Signac::CoveragePlot(
-      object = d2,
-      region = gn,
-      features = gn,
-      expression.assay = a2,
-      expression.slot = adat,
-      annotation = TRUE,
-      peaks = TRUE,
-      links = lnk,
-      idents = sort(unique(d2@meta.data[[ctc2]])),
-      extend.upstream = bpw[[1]],
-      extend.downstream = bpw[[2]],
-      region.highlight = g_reg
-    ) &
-      ggplot2::scale_fill_manual(values = col_univ()) & # nolint
-      ggplot2::theme(
-        axis.title.x = ggplot2::element_text(size = 8),
-        axis.title.y = ggplot2::element_text(size = 8),
-        strip.text = ggplot2::element_text(size = 6),
-        axis.text.x = ggplot2::element_text(size = 6),
-        plot.margin = ggplot2::unit(
-          c(0.25, 0, 0.25, 0),
-          "cm"
+    if (class(d2@meta.data[[ctc2]]) == "factor") {
+      p1 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = levels(d2@meta.data[[ctc2]]),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
         )
-      )
+    }
+    if (class(d2@meta.data[[ctc2]]) == "character") {
+      p1 <- Signac::CoveragePlot(
+        object = d2,
+        region = gn,
+        features = gn,
+        expression.assay = a2,
+        expression.slot = adat,
+        annotation = TRUE,
+        peaks = TRUE,
+        links = lnk,
+        idents = sort(unique(d2@meta.data[[ctc2]])),
+        extend.upstream = bpw[[1]],
+        extend.downstream = bpw[[2]],
+        region.highlight = g_reg
+      ) &
+        ggplot2::scale_fill_manual(values = col_univ()) & # nolint
+        ggplot2::theme(
+          axis.title.x = ggplot2::element_text(size = 8),
+          axis.title.y = ggplot2::element_text(size = 8),
+          strip.text = ggplot2::element_text(size = 6),
+          axis.text.x = ggplot2::element_text(size = 6),
+          plot.margin = ggplot2::unit(
+            c(0.25, 0, 0.25, 0),
+            "cm"
+          )
+        )
+    }
     p_comb <- p1
   }
   return(p_comb)

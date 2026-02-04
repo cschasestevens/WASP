@@ -1,4 +1,4 @@
-# WASP v4.19 (20260130)
+# WASP v4.20 (20260204)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -102,6 +102,9 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.20
+    * Updated tutorial to v4.20
+    * Updated sc_coverage_plot to be compatible with newer versions of Bioconductor packages.
 * 4.19
     * Updated tutorial to v4.19.
     * Bioconductor dependencies are now automatically installed along with package.
