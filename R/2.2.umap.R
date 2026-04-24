@@ -613,7 +613,7 @@ sc_barplot <- function(
     ) +
       ggplot2::scale_fill_manual(
         name = ct_col,
-        values = col_univ()
+        values = col_univ() # nolint
       ) +
       # Add barplot
       ggplot2::geom_bar(
@@ -674,7 +674,7 @@ sc_barplot <- function(
     ) +
       ggplot2::scale_fill_manual(
         name = ct_col,
-        values = col_univ()
+        values = col_univ() # nolint
       ) +
       # Add barplot
       ggplot2::geom_bar(

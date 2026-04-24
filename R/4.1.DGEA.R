@@ -428,7 +428,7 @@ sc_diff <- function( # nolint
         list_tf,
         by = "GENE"
       ),
-      "CellType", "Comparison", "GENE", "TF", everything()
+      "CellType", "Comparison", "GENE", "TF", everything() # nolint
     )
     dgea_sum[["missing"]] <- dplyr::select(
       dplyr::left_join(

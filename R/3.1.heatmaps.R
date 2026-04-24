@@ -26,12 +26,12 @@
 #' @param rc Show column names?
 #' @param rn Show row names?
 #' @param rot_c Rotation of column names.
-#' @param col1 Gradient color scheme to use
-#' (must be exactly 4 colors in length).
+#' @param col1 Gradient color scheme to use.
 #' @param mark_dir Directory for saving the calculated marker gene table.
 #' @param mark_tab Path to an existing marker table for skipping the
 #' calculation of marker genes if l_cstm is not provided.
 #' @param transp Transpose heatmap input matrix (FALSE by default).
+#' @param var_as_factor Should cluster variable be converted to factor?
 #' @return A ComplexHeatmap object containing a top-10 marker gene heatmap.
 #' @examples
 #'
@@ -62,7 +62,8 @@ sc_heatmap <- function(
   col1 = col_grad(scm = 5), # nolint
   mark_dir = "analyze/",
   mark_tab = NULL,
-  transp = FALSE
+  transp = FALSE,
+  var_as_factor = FALSE
 ) {
   if (is.null(deg_plot)) {
     d <- so
@@ -150,7 +151,7 @@ sc_heatmap <- function(
         )
         cl_mark <- dplyr::slice_max(
           cl_mark,
-          order_by = .data[["avg_log2FC"]],
+          order_by = .data[["avg_log2FC"]], # nolint
           n = top_deg
         )
       }
@@ -183,13 +184,24 @@ sc_heatmap <- function(
       }
     }
     if (!is.null(l_cstm)) {
-      h <- SeuratObject::FetchData(
-        d,
-        vars = c(
-          cl_var,
-          unique(l_cstm[l_cstm %in% rownames(d)])
+      if (length(l_cstm) > 1) {
+        h <- SeuratObject::FetchData(
+          d,
+          vars = c(
+            cl_var,
+            unique(l_cstm[l_cstm %in% rownames(d)])
+          )
         )
-      )
+      }
+      if (length(l_cstm) == 1) {
+        h <- SeuratObject::FetchData(
+          d,
+          vars = c(
+            cl_var,
+            l_cstm
+          )
+        )
+      }
       if (asy == "chromvar") {
         h <- setNames(
           h,
@@ -211,10 +223,12 @@ sc_heatmap <- function(
   if (!is.null(deg_plot)) {
     h <- deg_plot
   }
-  h[[1]] <- factor(
-    as.character(h[[1]]),
-    levels = gtools::mixedsort(unique(as.character(h[[1]])))
-  )
+  if (var_as_factor == TRUE) {
+    h[[1]] <- factor(
+      as.character(h[[1]]),
+      levels = gtools::mixedsort(unique(as.character(h[[1]])))
+    )
+  }
   ### Scale and plot average expression/accessibility per cell type
   if (is.null(deg_plot)) {
     h_in <- scale(
@@ -258,12 +272,14 @@ sc_heatmap <- function(
       h_in <- h
     }
     # reassign factor levels
-    h_in[["CellType"]] <- factor(
-      as.character(h_in[["CellType"]]),
-      levels = gtools::mixedsort(
-        unique(as.character(h_in[["CellType"]]))
+    if (var_as_factor == TRUE) {
+      h_in[["CellType"]] <- factor(
+        as.character(h_in[["CellType"]]),
+        levels = gtools::mixedsort(
+          unique(as.character(h_in[["CellType"]]))
+        )
       )
-    )
+    }
     # Create matrix
     h_in <- reshape2::dcast(
       h_in[, c("CellType", "GENE", "log2FC")],
@@ -321,7 +337,7 @@ sc_heatmap <- function(
         round(mean(c(qs[[1]], qs[[2]])), digits = 0),
         qs[[2]]
       ),
-      colors = col_grad(scm = 4)
+      colors = col_grad(scm = 4) # nolint
     )
   }
   # Create Plot

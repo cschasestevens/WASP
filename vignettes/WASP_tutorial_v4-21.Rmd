@@ -378,6 +378,13 @@ sc_volcano(
 ```{r covg, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
 # Generate coverage plot for genomic region closest to
 # selected gene transcription site
+setMethod(
+  "seqinfo",
+  signature(x = "ChromatinAssay"),
+  function(x) {
+    GenomeInfoDb::seqinfo(x@ranges)
+  }
+)
 sc_coverage_plot(
   so = d1,
   dref = scparam[["ref.gtf"]],

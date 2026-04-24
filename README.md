@@ -1,4 +1,4 @@
-# WASP v4.20 (20260204)
+# WASP v4.21 (20260424)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -71,11 +71,14 @@ Incorporates Seurat and Signac with various R packages to perform processing and
 * Run the following in a new R session on the command line or within R-Studio:
 
 ```
+# For older versions of R (v4.5.0 and below)
 devtools::install_github(
   "cschasestevens/WASP", 
   ref = "main", 
   build_vignettes = TRUE
 )
+# For latest R version (v4.5.3)
+pak::pak("cschasestevens/WASP")
 ```
 
 * Please note that processing of 10X multiome files requires a local installation of hdf5r and Python (v3.9-3.12) with MACS3 installed. See https://macs3-project.github.io/MACS/docs/INSTALL.html for instructions to install MACS3 within Python. This step is not necessary if only analyzing processed multiome datasets.
@@ -102,6 +105,10 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.21
+    * Updated sc_coverage_plot for compatibility with R version 4.5.3.
+    * Added parameter for converting to factor variable in sc_heatmap.
+    * Updated tutorial to reflect changes in v4.21.
 * 4.20
     * Updated tutorial to v4.20
     * Updated sc_coverage_plot to be compatible with newer versions of Bioconductor packages.

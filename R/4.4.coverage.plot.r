@@ -185,15 +185,6 @@ sc_coverage_plot <- function( # nolint
   md_list1 = NULL,
   p_type = "ct_only"
 ) {
-  # Configure seqinfo function for compatibility with new versions
-  # of Bioconductor packages
-  setMethod(
-    "seqinfo",
-    signature(x = "ChromatinAssay"),
-    function(x) {
-      GenomeInfoDb::seqinfo(x@ranges)
-    }
-  )
   # Set parameters
   d <- so
   a1 <- asy1
