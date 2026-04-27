@@ -1,5 +1,5 @@
 Package: WASP
-Date: 2026-04-24
+Date: 2026-04-27
 Type: Package
 Title: Whole Analysis of Sequencing data in Parallel (WASP)
 Version: 4.21
@@ -64,4 +64,5 @@ Imports:
   stringr,
   BiocManager,
   RColorBrewer,
-  motifmatchr
+  motifmatchr,
+  shiny

@@ -1,4 +1,4 @@
-# WASP v4.21 (20260424)
+# WASP v4.30 (20260427)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -65,7 +65,8 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * EnhancedVolcano (Bioconductor),
         * shadowtext,
         * stringr,
-        * motifmatchr (Bioconductor)
+        * motifmatchr (Bioconductor),
+        * shiny
 
 ### Installation
 * Run the following in a new R session on the command line or within R-Studio:
@@ -97,6 +98,12 @@ browseVignettes("WASP")
 ?WASP::sc_umap()
 ```
 
+* Launch the WASP GUI by running the following:
+
+```
+WASP::run_wasp_gui()
+```
+
 ## Authors
 
 * Nathanial Chase Stevens, PhD, University of North Carolina at Chapel Hill
@@ -105,6 +112,8 @@ browseVignettes("WASP")
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.30
+    * Added Shiny app for interactive usage of common WASP functions.
 * 4.21
     * Updated sc_coverage_plot for compatibility with R version 4.5.3.
     * Added parameter for converting to factor variable in sc_heatmap.
