@@ -25,7 +25,8 @@ sc_heatmap(
   col1 = col_grad(scm = 5),
   mark_dir = "analyze/",
   mark_tab = NULL,
-  transp = FALSE
+  transp = FALSE,
+  var_as_factor = FALSE
 )
 }
 \arguments{
@@ -68,8 +69,7 @@ of the cluster variable for cell type predictions.}
 
 \item{rn}{Show row names?}
 
-\item{col1}{Gradient color scheme to use
-(must be exactly 4 colors in length).}
+\item{col1}{Gradient color scheme to use.}
 
 \item{mark_dir}{Directory for saving the calculated marker gene table.}
 
@@ -77,6 +77,8 @@ of the cluster variable for cell type predictions.}
 calculation of marker genes if l_cstm is not provided.}
 
 \item{transp}{Transpose heatmap input matrix (FALSE by default).}
+
+\item{var_as_factor}{Should cluster variable be converted to factor?}
 }
 \value{
 A ComplexHeatmap object containing a top-10 marker gene heatmap.

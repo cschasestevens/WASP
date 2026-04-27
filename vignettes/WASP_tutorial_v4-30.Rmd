@@ -14,7 +14,12 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Setup
+## Run Shiny App
+```{r}
+WASP::run_app()
+```
+
+## Standard Setup
 ### - Ensure that a 10X CellRanger output folder containing both RNA and ATAC data is available in the working directory prior to running package functions.
 ### - Also requires a valid annotation and reference genome file for mapping reads/fragments
 ###   - Recommended to use files from GENCODE (works natively with sc_multiome_params())
