@@ -21,9 +21,8 @@ mod_data_import_ui <- function(id) {
 #' @param id A string. The module namespace id.
 #' @return A reactive containing the imported Seurat object.
 #' @export
-mod_data_import_server <- function(id, session = shiny::getDefaultReactiveDomain()) {
+mod_data_import_server <- function(id) {
   moduleServer(id, function(input, output, session) {
-
     imported_data <- reactive({
       # req() stops execution silently until a file is uploaded
       req(input$file)
@@ -50,10 +49,9 @@ mod_data_import_server <- function(id, session = shiny::getDefaultReactiveDomain
         )
       )
 
-      obj
     })
 
-    # Render a status message showing cell and feature counts on success
+    # Render a status message showing dataset details when successful
     output$import_status <- renderUI({
       req(imported_data())
       obj <- imported_data()

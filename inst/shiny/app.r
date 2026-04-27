@@ -1,5 +1,9 @@
 #### WASP GUI ####
 rm(list = ls(all.names = TRUE))
+gc(reset = TRUE)
+if (Sys.info()[["sysname"]] == "Linux") {
+  options(browser = "xdg-open")
+}
 #---- Load libraries ----
 library(shiny)
 library(patchwork)
@@ -11,5 +15,5 @@ library(TFBSTools)
 #---- Run app ----
 shiny::shinyApp(
   ui = WASP::app_ui(),
-  server = WASP::app_server()
+  server = WASP::app_server
 )

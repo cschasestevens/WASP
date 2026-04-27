@@ -5,7 +5,9 @@
 mod_plot_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    plotOutput(ns("scatter"))
+    plotOutput(
+      ns("scatter")
+    )
   )
 }
 
@@ -14,13 +16,13 @@ mod_plot_ui <- function(id) {
 #' @param id A string. The module namespace id.
 #' @param data A reactive Seurat object from mod_filter_server.
 #' @export
-mod_plot_server <- function(id, data, session = shiny::getDefaultReactiveDomain()) {
+mod_plot_server <- function(id, data) {
   moduleServer(id, function(input, output, session) {
 
     output$scatter <- renderPlot({
-      req(data())
-      Seurat::DimPlot(data())
-    })
+        req(data())
+        Seurat::DimPlot(data())
+      })
 
   })
 }

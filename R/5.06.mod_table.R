@@ -14,7 +14,7 @@ mod_summary_table_ui <- function(id) {
 #' @param id A string. The module namespace id.
 #' @param data A reactive Seurat object from mod_filter_server.
 #' @export
-mod_summary_table_server <- function(id, data, session = shiny::getDefaultReactiveDomain()) {
+mod_summary_table_server <- function(id, data) {
   moduleServer(id, function(input, output, session) {
 
     output$table <- renderTable({

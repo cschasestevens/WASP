@@ -5,16 +5,16 @@
 #' @export
 app_ui <- function() {
   fluidPage(
-    titlePanel("My Modular App"),
+    titlePanel("WASP App"),
     sidebarLayout(
       sidebarPanel(
-        mod_data_import_ui("import"),  # data import module
-        hr(),
-        mod_filter_ui("filter")        # filter module
+        mod_data_import_ui("import"),  # Import RDS file
+        # hr(),
+        # mod_filter_ui("filter")        # filter module
       ),
       mainPanel(
-        mod_plot_ui("plot"),            # plot module
-        mod_summary_table_ui("table")  # summary table module
+        # mod_plot_ui("plot"),            # plot module
+        # mod_summary_table_ui("table")  # summary table module
       )
     )
   )
