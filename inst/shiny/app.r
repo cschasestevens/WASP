@@ -1,4 +1,5 @@
 #### WASP GUI ####
+rm(list = ls(all.names = TRUE))
 #---- Load libraries ----
 library(shiny)
 library(patchwork)
@@ -9,6 +10,6 @@ library(TFBSTools)
 
 #---- Run app ----
 shiny::shinyApp(
-  ui = app_ui(),
-  server = app_server()
+  ui = WASP::app_ui(),
+  server = WASP::app_server()
 )
