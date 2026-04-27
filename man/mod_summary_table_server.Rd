@@ -4,7 +4,7 @@
 \alias{mod_summary_table_server}
 \title{Summary Table Module Server}
 \usage{
-mod_summary_table_server(id, data, session = shiny::getDefaultReactiveDomain())
+mod_summary_table_server(id, data)
 }
 \arguments{
 \item{id}{A string. The module namespace id.}

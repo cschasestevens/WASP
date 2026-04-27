@@ -11,7 +11,6 @@ mod_data_import_ui <- function(id) {
       accept      = ".rds",
       placeholder = "No file selected"
     ),
-    # Rendered dynamically after a file is successfully loaded
     uiOutput(ns("import_status"))
   )
 }
@@ -24,7 +23,6 @@ mod_data_import_ui <- function(id) {
 mod_data_import_server <- function(id) {
   moduleServer(id, function(input, output, session) {
     imported_data <- reactive({
-      # req() stops execution silently until a file is uploaded
       req(input$file)
 
       # Validate the file extension
@@ -35,7 +33,10 @@ mod_data_import_server <- function(id) {
 
       # Attempt to read the file
       obj <- tryCatch(
-        readRDS(input$file$datapath),
+        {
+          d1 <- readRDS(input$file$datapath)
+          return(d1)
+        },
         error = function(e) {
           validate(need(FALSE, paste("Could not read file:", e$message)))
         }
@@ -49,18 +50,19 @@ mod_data_import_server <- function(id) {
         )
       )
 
+      # Return object for filtering
+      return(obj)
+
     })
 
-    # Render a status message showing dataset details when successful
-    output$import_status <- renderUI({
-      req(imported_data())
-      obj <- imported_data()
-      tags$p(
+    output$import_status <- shiny::renderUI({
+      shiny::req(imported_data())
+      shiny::tags$p(
         style = "color: green;",
         sprintf(
-          "\u2713 Loaded Seurat object: %d cells, %d features.",
-          ncol(obj),
-          nrow(obj)
+          "\u2713 Loaded Seurat object containing: %d cells, %d assays.",
+          ncol(imported_data()),
+          length(SeuratObject::Assays(imported_data()))
         )
       )
     })

@@ -4,7 +4,7 @@
 \alias{mod_filter_server}
 \title{Filter Module Server}
 \usage{
-mod_filter_server(id, data, session = shiny::getDefaultReactiveDomain())
+mod_filter_server(id, data)
 }
 \arguments{
 \item{id}{A string. The module namespace id.}

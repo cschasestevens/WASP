@@ -38,7 +38,7 @@ mod_filter_server <- function(id, data) {
       selectInput(
         ns("value"),
         label    = "Select value:",
-        choices  = c("All", unique(data()@meta.data[[input$column]])),
+        choices  = c("All", unique(as.character(data()@meta.data[[input$column]]))),
         selected = "All"
       )
     })
@@ -49,7 +49,7 @@ mod_filter_server <- function(id, data) {
       if (is.null(input$value) || input$value == "All") {
         data()
       } else {
-        subset(data(), subset = .data[[input$column]] == input$value)
+        data()[, grepl(input$value, data()@meta.data[[input$column]])]
       }
     })
 

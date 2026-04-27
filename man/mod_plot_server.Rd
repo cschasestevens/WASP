@@ -4,7 +4,7 @@
 \alias{mod_plot_server}
 \title{Plot Module Server}
 \usage{
-mod_plot_server(id, data, session = shiny::getDefaultReactiveDomain())
+mod_plot_server(id, data)
 }
 \arguments{
 \item{id}{A string. The module namespace id.}
