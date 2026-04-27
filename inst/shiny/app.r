@@ -9,6 +9,6 @@ library(TFBSTools)
 
 #---- Run app ----
 shiny::shinyApp(
-  ui = WASP::app_ui(),
-  server = WASP::app_server()
+  ui = app_ui(),
+  server = app_server()
 )
