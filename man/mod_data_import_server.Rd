@@ -4,7 +4,7 @@
 \alias{mod_data_import_server}
 \title{Data Import Module Server}
 \usage{
-mod_data_import_server(id)
+mod_data_import_server(id, session = shiny::getDefaultReactiveDomain())
 }
 \arguments{
 \item{id}{A string. The module namespace id.}

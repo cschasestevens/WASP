@@ -16,7 +16,8 @@ knitr::opts_chunk$set(
 
 ## Run Shiny App
 ```{r}
-WASP::run_app()
+library(WASP)
+run_app()
 ```
 
 ## Standard Setup

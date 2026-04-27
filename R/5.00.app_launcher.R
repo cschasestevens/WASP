@@ -9,7 +9,7 @@ run_app <- function(...) {
   # Increase upload limit to 2 GB — adjust as needed
   options(shiny.maxRequestSize = 10 * 1024^3)
 
-  app_dir <- system.file("shiny", "app", package = "WASP")
+  app_dir <- system.file("shiny", "app.r", package = "WASP")
 
   # system.file() returns "" if the directory cannot be found
   if (app_dir == "") {

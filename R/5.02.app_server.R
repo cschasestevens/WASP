@@ -6,7 +6,7 @@
 #' @param output Shiny app output.
 #' @param session Shiny app session information
 #' @export
-app_server <- function(input, output, session) {
+app_server <- function(input, output, session = shiny::getDefaultReactiveDomain()) {
 
   # 1. Import — returns a reactive Seurat object
   imported_data <- mod_data_import_server("import")

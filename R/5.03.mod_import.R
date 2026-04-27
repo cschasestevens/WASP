@@ -21,7 +21,7 @@ mod_data_import_ui <- function(id) {
 #' @param id A string. The module namespace id.
 #' @return A reactive containing the imported Seurat object.
 #' @export
-mod_data_import_server <- function(id) {
+mod_data_import_server <- function(id, session = shiny::getDefaultReactiveDomain()) {
   moduleServer(id, function(input, output, session) {
 
     imported_data <- reactive({

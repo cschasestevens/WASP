@@ -17,7 +17,7 @@ mod_filter_ui <- function(id) {
 #' @param data A reactive Seurat object from mod_data_import_server.
 #' @return A reactive filtered Seurat object.
 #' @export
-mod_filter_server <- function(id, data) {
+mod_filter_server <- function(id, data, session = shiny::getDefaultReactiveDomain()) {
   moduleServer(id, function(input, output, session) {
 
     # Dynamically build column selector from Seurat metadata

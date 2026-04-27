@@ -4,7 +4,7 @@
 \alias{app_server}
 \title{Run WASP GUI}
 \usage{
-app_server(input, output, session)
+app_server(input, output, session = shiny::getDefaultReactiveDomain())
 }
 \arguments{
 \item{input}{Shiny app input.}
