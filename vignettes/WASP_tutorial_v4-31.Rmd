@@ -1,8 +1,8 @@
 ---
-title: "WASP_tutorial_v4-30"
+title: "WASP_tutorial_v4-31"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{WASP_tutorial_v4-30}
+  %\VignetteIndexEntry{WASP_tutorial_v4-31}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
 ## Run Shiny App
 ```{r}
 library(WASP)
-run_app()
+# run_app()
 ```
 
 ## Standard Setup

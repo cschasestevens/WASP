@@ -11,7 +11,8 @@ sc_umap(
   dims1 = "2D",
   col1 = col_univ(),
   pos_leg = "none",
-  show_lab = TRUE
+  show_lab = TRUE,
+  ret_input = FALSE
 )
 }
 \arguments{
@@ -30,6 +31,8 @@ sc_umap(
 
 \item{show_lab}{Should labels be shown on the UMAP? Set to FALSE if plotting
 intensity data.}
+
+\item{ret_input}{Return plot input instead of plot.}
 }
 \value{
 A UMAP with points grouped by a specific metadata column.

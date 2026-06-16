@@ -13,6 +13,7 @@
 #' (either "2D" or "3D").
 #' @param show_lab Should labels be shown on the UMAP? Set to FALSE if plotting
 #' intensity data.
+#' @param ret_input Return plot input instead of plot.
 #' @return A UMAP with points grouped by a specific metadata column.
 #' @import ggplot2
 #' @import Seurat
@@ -34,7 +35,8 @@ sc_umap <- function(
   dims1 = "2D",
   col1 = col_univ(), # nolint
   pos_leg = "none",
-  show_lab = TRUE
+  show_lab = TRUE,
+  ret_input = FALSE
 ) {
   # Format input data
   d <- so
@@ -99,142 +101,102 @@ sc_umap <- function(
       colors = col1
     )
   }
+  if (dims1 == "2D") {
+    # Generate plot
+    d2_plot <- ggplot2::ggplot(
+      d2,
+      ggplot2::aes(
+        x=`UMAP.1`, # nolint
+        y=`UMAP.2`, # nolint
+        color = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]], # nolint
+        label = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]] # nolint
+      )
+    ) +
+      ggplot2::geom_point(
+        shape = 16,
+        size = 1,
+        alpha = 0.6
+      ) +
+      scm +
+      sc_theme1() + # nolint
+      ggplot2::ggtitle(md_var) +
+      ggplot2::theme(
+        panel.grid.major.y = ggplot2::element_blank(),
+        axis.text.x = ggplot2::element_blank(),
+        axis.text.y = ggplot2::element_blank(),
+        axis.title.x = ggplot2::element_blank(),
+        axis.title.y = ggplot2::element_blank(),
+        axis.ticks = ggplot2::element_blank(),
+        plot.margin = ggplot2::unit(
+          c(0.1, 0.1, 0.1, 0.1), "cm"
+        ),
+        legend.position = pos_leg
+      ) +
+      ggplot2::labs(title = md_var)
+    if (show_lab == TRUE) {
+      d2_plot <- d2_plot +
+        ggrepel::geom_text_repel(
+          data = setNames(
+            aggregate(
+              d2[, c("UMAP.1", "UMAP.2")],
+              list(d2[[gsub("\\/|\\-|\\ ", ".", md_var)]]),
+              FUN = median
+            ),
+            c(gsub("\\/|\\-|\\ ", ".", md_var), names(
+              d2[, c("UMAP.1", "UMAP.2")]
+            )
+            )
+          ),
+          size = 5.5,
+          bg.color = "grey0",
+          color = "grey90",
+          bg.r = 0.075
+        )
+    }
+  }
   if(dims1 == "3D") { # nolint
-    tryCatch(
-      {
-        # Generate plot
-        d2_plot <- plotly::plot_ly(
-          d2,
-          x = ~`UMAP.1`, # nolint
-          y = ~`UMAP.2`, # nolint
-          z = ~`UMAP.3`, # nolint
-          color = ~.data[[gsub("\\/|\\-|\\ ", ".", md_var)]], # nolint
-          colors = col1 # nolint
-        ) %>% # nolint
-          plotly::add_markers(marker = list(size = 3)) %>%
-          plotly::layout(
-            autosize = FALSE,
-            width = 800,
-            height = 600,
-            margin = list(
-              l = 50,
-              r = 50,
-              b = 25,
-              t = 25,
-              pad = 1
-            )
-          )
-        htmlwidgets::saveWidget(
-          d2_plot,
-          file = paste(
-            "analysis/p_umap_3d_", md_var, ".html", sep = ""
-          )
+    options(browser = "xdg-open")
+    # Generate plot
+    d2_plot <- plotly::plot_ly(
+      d2,
+      x = ~`UMAP.1`, # nolint
+      y = ~`UMAP.2`, # nolint
+      z = ~`UMAP.3`, # nolint
+      color = ~.data[[gsub("\\/|\\-|\\ ", ".", md_var)]], # nolint
+      colors = col1, # nolint
+      width = 800,
+      height = 600
+    ) %>% # nolint
+      plotly::add_markers(marker = list(size = 3)) %>% # nolint
+      plotly::layout(
+        autosize = FALSE,
+        margin = list(
+          l = 50,
+          r = 50,
+          b = 25,
+          t = 25,
+          pad = 1
         )
-        d2_plot <- print(
-          paste(
-            "3D UMAP plot created as: ",
-            "analysis/p_umap_3d_", md_var, ".html", sep = ""
-          )
-        )
-      },
-      error = function(e) {
-        print("Error: data should contain the chosen overlay variable and three embedding variables named UMAP.1, UMAP.2, and UMAP.3!") # nolint
-      }
+      )
+    htmlwidgets::saveWidget(
+      d2_plot,
+      file = paste(
+        "analysis/p_umap_3d_", md_var, ".html", sep = ""
+      )
+    )
+    d2_plot <- print(
+      paste(
+        "3D UMAP plot created as: ",
+        "analysis/p_umap_3d_", md_var, ".html", sep = ""
+      )
     )
   }
-  if(dims1 == "2D") { # nolint
-    tryCatch(
-      {
-        if (show_lab == TRUE) {
-          # Generate plot
-          d2_plot <- ggplot2::ggplot(
-            d2,
-            ggplot2::aes(
-              x=`UMAP.1`, # nolint
-              y=`UMAP.2`, # nolint
-              color = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]], # nolint
-              label = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]] # nolint
-            )
-          ) +
-            ggplot2::geom_point(
-              shape = 16,
-              size = 1,
-              alpha = 0.6
-            ) +
-            ggrepel::geom_text_repel(
-              data = setNames(
-                aggregate(
-                  d2[, c("UMAP.1", "UMAP.2")],
-                  list(d2[[gsub("\\/|\\-|\\ ", ".", md_var)]]),
-                  FUN = median
-                ),
-                c(gsub("\\/|\\-|\\ ", ".", md_var), names(
-                  d2[, c("UMAP.1", "UMAP.2")]
-                )
-                )
-              ),
-              size = 5.5,
-              bg.color = "grey0",
-              color = "grey55",
-              bg.r = 0.075
-            ) +
-            scm +
-            sc_theme1() + # nolint
-            ggplot2::ggtitle(md_var) +
-            ggplot2::theme(
-              panel.grid.major.y = ggplot2::element_blank(),
-              axis.text.x = ggplot2::element_blank(),
-              axis.text.y = ggplot2::element_blank(),
-              axis.title.x = ggplot2::element_blank(),
-              axis.title.y = ggplot2::element_blank(),
-              axis.ticks = ggplot2::element_blank(),
-              plot.margin = ggplot2::unit(
-                c(0.1, 0.1, 0.1, 0.1), "cm"
-              ),
-              legend.position = pos_leg
-            ) +
-            ggplot2::labs(title = md_var)
-        }
-        if (show_lab == FALSE) {
-          # Generate plot
-          d2_plot <- ggplot2::ggplot(
-            d2,
-            ggplot2::aes(
-              x=`UMAP.1`, # nolint
-              y=`UMAP.2`, # nolint
-              color = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]], # nolint
-              label = .data[[gsub("\\/|\\-|\\ ", ".", md_var)]] # nolint
-            )
-          ) +
-            ggplot2::geom_point(
-              shape = 16,
-              size = 1,
-              alpha = 0.6
-            ) +
-            scm +
-            sc_theme1() + # nolint
-            ggplot2::ggtitle(md_var) +
-            ggplot2::theme(
-              panel.grid.major.y = ggplot2::element_blank(),
-              axis.text.x = ggplot2::element_blank(),
-              axis.text.y = ggplot2::element_blank(),
-              axis.title.x = ggplot2::element_blank(),
-              axis.title.y = ggplot2::element_blank(),
-              axis.ticks = ggplot2::element_blank(),
-              plot.margin = ggplot2::unit(
-                c(0.1, 0.1, 0.1, 0.1), "cm"
-              ),
-              legend.position = pos_leg
-            ) +
-            ggplot2::labs(title = md_var)
-        }
-      },
-      error = function(e) {
-        print("Error: data should contain the chosen overlay variable and two embedding variables named UMAP.1 and UMAP.2!") # nolint
-      }
-    )
+  if (ret_input == TRUE) {
+    return(d2) # nolint
   }
-  return(d2_plot)
+  if (ret_input == FALSE) {
+    return(d2_plot) # nolint
+  }
 }
 
 #' Violin Plot
@@ -761,7 +723,7 @@ sc_umap_panel <- function(
   if(length(lp) == 1) { # nolint
     d2_out <- lp[[1]]
   }
-  return(d2_out)
+  return(d2_out) # nolint
 }
 
 #' Visualize Individual Gene Expression
@@ -927,7 +889,7 @@ sc_vio_panel_gene <- function(
         )
       )
   }
-  return(plot_v)
+  return(plot_v) # nolint
 }
 
 #' scATAC-Seq Activity UMAP

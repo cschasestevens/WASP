@@ -13,6 +13,7 @@ sc_heatmap(
   l_cstm = NULL,
   asy = "SCT",
   cl_var = "CellType",
+  var_cl = NULL,
   h_w = 40,
   h_h = 20,
   fs_c = 6,
@@ -26,7 +27,9 @@ sc_heatmap(
   mark_dir = "analyze/",
   mark_tab = NULL,
   transp = FALSE,
-  var_as_factor = FALSE
+  var_as_factor = FALSE,
+  ret_input = FALSE,
+  hmlinewidth = 0
 )
 }
 \arguments{
@@ -50,6 +53,8 @@ on differential expression in at least one group/cluster.}
 
 \item{cl_var}{Character string containing the name
 of the cluster variable for cell type predictions.}
+
+\item{var_cl}{Custom gene list variable for heatmap annotation.}
 
 \item{h_w}{Numeric value for heatmap width (passed to ComplexHeatmap).}
 
@@ -79,6 +84,10 @@ calculation of marker genes if l_cstm is not provided.}
 \item{transp}{Transpose heatmap input matrix (FALSE by default).}
 
 \item{var_as_factor}{Should cluster variable be converted to factor?}
+
+\item{ret_input}{Returns input heatmap matrix instead of the heatmap plot.}
+
+\item{hmlinewidth}{Numeric value for heatmap cell border width.}
 }
 \value{
 A ComplexHeatmap object containing a top-10 marker gene heatmap.

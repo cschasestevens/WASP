@@ -17,6 +17,7 @@
 #' @param asy Assay to use (ex. "RNA").
 #' @param cl_var Character string containing the name
 #' of the cluster variable for cell type predictions.
+#' @param var_cl Custom gene list variable for heatmap annotation.
 #' @param h_w Numeric value for heatmap width (passed to ComplexHeatmap).
 #' @param h_h Numeric value for heatmap height (passed to ComplexHeatmap).
 #' @param fs_c Numeric value for column fontsize (passed to ComplexHeatmap).
@@ -32,6 +33,8 @@
 #' calculation of marker genes if l_cstm is not provided.
 #' @param transp Transpose heatmap input matrix (FALSE by default).
 #' @param var_as_factor Should cluster variable be converted to factor?
+#' @param ret_input Returns input heatmap matrix instead of the heatmap plot.
+#' @param hmlinewidth Numeric value for heatmap cell border width.
 #' @return A ComplexHeatmap object containing a top-10 marker gene heatmap.
 #' @examples
 #'
@@ -50,6 +53,7 @@ sc_heatmap <- function(
   l_cstm = NULL,
   asy = "SCT",
   cl_var = "CellType",
+  var_cl = NULL,
   h_w = 40,
   h_h = 20,
   fs_c = 6,
@@ -63,7 +67,9 @@ sc_heatmap <- function(
   mark_dir = "analyze/",
   mark_tab = NULL,
   transp = FALSE,
-  var_as_factor = FALSE
+  var_as_factor = FALSE,
+  ret_input = FALSE,
+  hmlinewidth = 0.0
 ) {
   if (is.null(deg_plot)) {
     d <- so
@@ -184,16 +190,16 @@ sc_heatmap <- function(
       }
     }
     if (!is.null(l_cstm)) {
-      if (length(l_cstm) > 1) {
+      if (length(l_cstm[["Gene"]]) > 1) {
         h <- SeuratObject::FetchData(
           d,
           vars = c(
             cl_var,
-            unique(l_cstm[l_cstm %in% rownames(d)])
+            unique(l_cstm[["Gene"]][l_cstm[["Gene"]] %in% rownames(d)])
           )
         )
       }
-      if (length(l_cstm) == 1) {
+      if (length(l_cstm[["Gene"]]) == 1) {
         h <- SeuratObject::FetchData(
           d,
           vars = c(
@@ -296,6 +302,9 @@ sc_heatmap <- function(
       )
     )
   }
+  if (!is.null(deg_plot)) {
+    h_in[is.na(h_in)] <- 0
+  }
   qs <- quantile(
     h_in,
     probs = c(
@@ -340,9 +349,74 @@ sc_heatmap <- function(
       colors = col_grad(scm = 4) # nolint
     )
   }
+  #---- Include heatmap annotation ----
+  if (!is.null(var_cl)) {
+    if (is.null(l_cstm)) {
+      print("Gene annotation only compatible with custom gene lists. Please provide a formatted list using the l_cstm parameter...") # nolint
+    }
+    if (!is.null(l_cstm)) {
+      if (transp == FALSE) {
+        cl2 <- as.factor(
+          unlist(
+            lapply(
+              seq.int(1, length(colnames(h_in)), 1),
+              function(i) {
+                unique(
+                  l_cstm[l_cstm[["Gene"]] == colnames(h_in)[[i]], ][[var_cl]]
+                )[[1]]
+              }
+            )
+          )
+        )
+        # Heatmap annotation colors
+        fun_hm_bar <- list(
+          Set = setNames(
+            col_univ()[1:length(unique(cl2))], # nolint
+            gtools::mixedsort(unique(cl2))
+          )
+        )
+        # Annotations
+        hm_anno_col <- ComplexHeatmap::HeatmapAnnotation( # nolint
+          `Set` = cl2, # nolint
+          col = fun_hm_bar,
+          show_annotation_name = FALSE,
+          show_legend = TRUE
+        )
+      }
+      if (transp == TRUE) {
+        cl2 <- as.factor(
+          unlist(
+            lapply(
+              seq.int(1, length(rownames(h_in)), 1),
+              function(i) {
+                unique(
+                  l_cstm[l_cstm[["Gene"]] == rownames(h_in)[[i]], ][[var_cl]]
+                )[[1]]
+              }
+            )
+          )
+        )
+        fun_hm_bar_row <- list(
+          Set = setNames(
+            col_univ()[1:length(unique(cl2))], # nolint
+            gtools::mixedsort(unique(cl2))
+          )
+        )
+        ### Annotations
+        hm_anno_row <- ComplexHeatmap::rowAnnotation( # nolint
+          `Set` = cl2, # nolint
+          col = fun_hm_bar_row,
+          show_annotation_name = FALSE,
+          show_legend = TRUE
+        )
+      }
+    }
+  }
   # Create Plot
   h_out <- ComplexHeatmap::Heatmap(
     h_in,
+    top_annotation = if (!is.null(var_cl) && transp == FALSE) hm_anno_col else NULL, # nolint
+    left_annotation = if (!is.null(var_cl) && transp == TRUE) hm_anno_row else NULL, # nolint
     col = fun_hm_col,
     name = "Scaled Expression",
     show_column_names = rc,
@@ -354,9 +428,15 @@ sc_heatmap <- function(
     row_names_side = "left",
     row_names_gp = grid::gpar(fontsize = fs_r),
     cluster_columns = cl_c,
-    cluster_rows = cl_r
+    cluster_rows = cl_r,
+    rect_gp = grid::gpar(col = "black", lwd = hmlinewidth)
   )
-  return(h_out)
+  if (ret_input == FALSE) {
+    return(h_out) # nolint
+  }
+  if (ret_input == TRUE) {
+    return(h_in) # nolint
+  }
 }
 
 #' Dot Plot

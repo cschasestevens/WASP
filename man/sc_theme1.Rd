@@ -4,7 +4,33 @@
 \alias{sc_theme1}
 \title{Generic Plot Theme}
 \usage{
-sc_theme1()
+sc_theme1(
+  thm_type = "default",
+  txt_legtitle = 14,
+  txt_legtext = 10,
+  txt_plottitle = 14,
+  txt_strip = 12,
+  txt_axes = 14,
+  size_leg = 0.2,
+  leg = c(0.95, 0.95)
+)
+}
+\arguments{
+\item{thm_type}{COMb theme type (either "default" or "extra_axis_detail").}
+
+\item{txt_legtitle}{Legend title font size.}
+
+\item{txt_legtext}{Legend text font size.}
+
+\item{txt_plottitle}{Plot title font size.}
+
+\item{txt_strip}{Strip font size.}
+
+\item{txt_axes}{Axis title and text font size.}
+
+\item{size_leg}{Legend key size (in cm).}
+
+\item{leg}{Plot legend coordinates.}
 }
 \value{
 ggplot2 theme parameters to replace default plot theme.
@@ -14,6 +40,6 @@ General plotting theme.
 }
 \examples{
 
-# sc_theme1()
+# ms_theme()
 
 }

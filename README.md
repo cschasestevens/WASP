@@ -1,4 +1,4 @@
-# WASP v4.30 (20260427)
+# WASP v4.31 (20260616)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -112,6 +112,11 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.31
+    * Simplified script for sc_volcano and added option to color significant genes by a metadata variable.
+    * Added option to include a column or row annotation in sc_heatmap.
+    * Fixed error when generating a 3D umap using sc_umap related to opening web browser.
+    * Added print messages when using WASP color schemes and plot theme.
 * 4.30
     * Added Shiny app for interactive usage of common WASP functions.
 * 4.21
