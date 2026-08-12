@@ -1,4 +1,4 @@
-# WASP v4.31 (20260616)
+# WASP v4.32 (20260812)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -38,7 +38,8 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * org.Hs.eg.db (Bioconductor),
         * CellChat,
         * biomaRt (Bioconductor),
-        * topGO (Bioconductor)
+        * topGO (Bioconductor),
+        * nebula
     * Imports: 
         * ggplot2,
         * viridis,
@@ -112,6 +113,11 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.32
+    * Added nebula DGEA to methods available in sc_diff.
+    * nebula DGEA/DA is now the default method implemented by sc_diff.
+    * Restructed sc_diff function for easier troubleshooting and future additions.
+    * Removed Shiny app from package functions (will be part of standalone R package).
 * 4.31
     * Simplified script for sc_volcano and added option to color significant genes by a metadata variable.
     * Added option to include a column or row annotation in sc_heatmap.
@@ -256,3 +262,4 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 * Seurat package: Hao, Y., Stuart, T., Kowalski, M.H. et al. Dictionary learning for integrative, multimodal and scalable single-cell analysis. Nat Biotechnol 42, 293–304 (2024). https://doi.org/10.1038/s41587-023-01767-y
 * ComplexHeatmap package: Gu Z, Eils R, Schlesner M (2016). “Complex heatmaps reveal patterns and correlations in multidimensional genomic data.” Bioinformatics. <doi:10.1093/bioinformatics/btw313>
 * Circlize package: Gu, Z. circlize implements and enhances circular visualization in R. Bioinformatics 2014.
+* NEBULA DGEA: https://doi.org/10.1038/s42003-021-02146-6

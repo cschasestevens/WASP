@@ -7,10 +7,10 @@
 sc_diff(
   so,
   asy = "SCT",
-  slot1 = "scale.data",
+  slot1 = "counts",
   ct = "CellType",
-  mast_comp,
-  mast_name,
+  var_id = "Code",
+  mtd = "nebula",
   form1,
   cores = 1
 )
@@ -26,12 +26,10 @@ Seurat object to pull from the chosen assay.}
 
 \item{ct}{CellType column name.}
 
-\item{mast_comp}{Character string indicating the name of the MAST
-group comparison for conducting DGEA. MAST names are comprised of the chosen
-variable name and the leading factor level within that variable.}
+\item{var_id}{Sample ID column name.}
 
-\item{mast_name}{User-defined name of a DGEA comparison,
-provided as a character string.}
+\item{mtd}{DGEA/DA method to use (either "MAST" or "nebula").
+Set to nebula by default.}
 
 \item{form1}{Formula to use for MAST generalized linear model. Usually
 consists of two terms, the first of which is the treatment group column

@@ -9,11 +9,9 @@
 #' @param slot1 Character string selecting the slot from the
 #' Seurat object to pull from the chosen assay.
 #' @param ct CellType column name.
-#' @param mast_comp Character string indicating the name of the MAST
-#' group comparison for conducting DGEA. MAST names are comprised of the chosen
-#' variable name and the leading factor level within that variable.
-#' @param mast_name User-defined name of a DGEA comparison,
-#' provided as a character string.
+#' @param var_id Sample ID column name.
+#' @param mtd DGEA/DA method to use (either "MAST" or "nebula").
+#' Set to nebula by default.
 #' @param form1 Formula to use for MAST generalized linear model. Usually
 #' consists of two terms, the first of which is the treatment group column
 #' name and the second of which is the column indicating the number of features
@@ -36,115 +34,144 @@
 sc_diff <- function( # nolint
   so,
   asy = "SCT",
-  slot1 = "scale.data",
+  slot1 = "counts",
   ct = "CellType",
-  mast_comp,
-  mast_name,
+  var_id = "Code",
+  mtd = "nebula",
   form1,
   cores = 1
 ) {
+  #---- Define parameters ----
+  # method
+  mtd1 <- mtd
   # Seurat object
   d <- so
   # Cell type column
   c <- ct
+  # Sample ID column
+  v <- var_id
   # Slot name
   slt <- slot1
   # Assay name
   assy <- asy
   # MAST formula terms
   form <- form1
-  # MAST Comparison (combines column name and leading factor level for name)
-  mc <- mast_comp
-  # MAST Comparison name
-  mn <- mast_name
-  ## Input
-  deg_mat <- as.matrix(
-    SeuratObject::GetAssayData(d, layer = slt, assay = assy)
-  )
-  ## Set correct rownames if performing DA analysis
-  if (assy == "chromvar") { # nolint
-    rownames(deg_mat) <- rownames(d@assays[[assy]])
-  }
-  if (assy == "ATAC") { # nolint
-    rownames(deg_mat) <- paste(
-      d@assays[["chromvar"]]@meta.features$nearestGene,
-      seq.int(1, nrow(d@assays[[assy]]@meta.features), 1),
-      sep = "."
+  #---- Function: input ----
+  fun.input <- function(dso, asy1, slt1) { # nolint
+    d1 <- dso
+    ## Input
+    deg_mat <- as.matrix(
+      SeuratObject::GetAssayData(d1, layer = slt1, assay = asy1)
     )
-  }
-  deg_cols <- data.frame(
-    d@meta.data[, c(form, c)]
-  )
-  ## Format input as DGEA/DA object
-  if (assy == "chromvar" || assy == "ATAC") {
-    dgea_sc <- MAST::FromMatrix(
-      deg_mat,
-      cData = deg_cols,
-      check_sanity = FALSE
-    )
-  }
-  if (assy != "chromvar" && assy != "ATAC") {
-    dgea_sc <- MAST::FromMatrix(
-      deg_mat,
-      cData = deg_cols
-    )
-  }
-  dgea_celltype <- unique(
-    as.character(SingleCellExperiment::colData(dgea_sc)[[c]])
-  )
-  list_dgea <- list("SCE" = dgea_sc, "CellType" = dgea_celltype)
-  remove(d)
-  ## Subset data prior to differential analysis
-  list_dgea_sub <- setNames(lapply(
-    seq.int(1, length(list_dgea[["CellType"]]), 1),
-    function(i) {
-      # Subset data
-      ## split cell types
-      s1 <- list_dgea[[1]][ , SingleCellExperiment::colData(list_dgea[["SCE"]])[[c]] == list_dgea[["CellType"]][[i]]] #nolint
-      ## filter genes not expressed in cell type
-      s1_sum <- rowSums(SummarizedExperiment::assay(s1) > 0)
-      ## remove NA
-      s1_sum[is.na(s1_sum)] <- 0
-      ## retain genes expressed in > 5% of cells per type
-      s1 <- s1[s1_sum / ncol(s1) >= 0.05, ]
-      return(s1) # nolint
+    ## Set correct rownames if performing DA analysis
+    if (assy == "chromvar") { # nolint
+      rownames(deg_mat) <- rownames(d1@assays[[asy1]])
     }
-  ), list_dgea[["CellType"]])
-  ## Return list of variable genes removed from each cell type
-  list_miss <- dplyr::bind_rows(
-    lapply(
-      seq.int(1, length(list_dgea_sub), 1),
-      function(i) {
-        data.frame(
-          "CellType" = rep(
-            unique(
-              as.character(
-                SingleCellExperiment::colData(list_dgea_sub[[i]])[[c]]
-              )
-            ),
-            length(
-              rownames(
-                list_dgea[["SCE"]]
-              )[
-                rownames(list_dgea[["SCE"]]) %in%
-                  rownames(list_dgea_sub[[i]]) == FALSE
-              ]
+    if (assy == "ATAC") { # nolint
+      rownames(deg_mat) <- paste(
+        d1@assays[["chromvar"]]@meta.features$nearestGene,
+        seq.int(1, nrow(d1@assays[[asy1]]@meta.features), 1),
+        sep = "."
+      )
+    }
+    # Select metadata columns
+    deg_cols <- data.frame(
+      d1@meta.data[, c(form, c, v)]
+    )
+    # Method-specific inputs
+    if (mtd1 == "nebula") {
+      list_dgea <- list(
+        "counts" = deg_mat,
+        "meta" = deg_cols,
+        "formula" = model.matrix(
+          as.formula(
+            paste(
+              "~", form[[1]], "+",
+              form[[2]],
+              sep = " "
             )
           ),
-          "GENE" = rownames(
-            list_dgea[["SCE"]]
-          )[
-            rownames(list_dgea[["SCE"]]) %in%
-              rownames(list_dgea_sub[[i]]) == FALSE
-          ]
+          data = deg_cols
+        ),
+        "CellType" = gtools::mixedsort(unique(as.character(deg_cols[[c]])))
+      )
+    }
+    if (mtd1 == "MAST") {
+      ## Format input as DGEA/DA object
+      if (assy == "chromvar" || assy == "ATAC") {
+        dgea_sc <- MAST::FromMatrix(
+          deg_mat,
+          cData = deg_cols,
+          check_sanity = FALSE
+        )
+      } else {
+        dgea_sc <- MAST::FromMatrix(
+          deg_mat,
+          cData = deg_cols
         )
       }
-    )
-  )
-  list_miss[["Note"]] <- "Removed based on filtering"
-  remove(list_dgea)
-  ## Define output function
-  d_mast_sum_fun <- function(
+      dgea_celltype <- gtools::mixedsort(unique(
+        as.character(SingleCellExperiment::colData(dgea_sc)[[c]])
+      ))
+      dgea_form <- as.formula(
+        paste(
+          "~", form[[1]], "+",
+          form[[2]],
+          sep = " "
+        )
+      )
+      list_dgea <- list(
+        "SCE" = dgea_sc,
+        "CellType" = dgea_celltype,
+        "Formula" = dgea_form
+      )
+    }
+    return(list_dgea) # nolint
+  }
+  #---- Function: subset ----
+  fun.subset <- function(ldgea) { # nolint
+    ld1 <- ldgea
+    list_dgea_sub <- setNames(lapply(
+      seq.int(1, length(ld1[["CellType"]]), 1),
+      function(i) {
+        # Subset data
+        if (mtd1 == "MAST") {
+          ## split cell types
+          s1 <- ld1[["SCE"]][ , SingleCellExperiment::colData(ld1[["SCE"]])[[c]] == ld1[["CellType"]][[i]]] #nolint
+          ## filter genes not expressed in cell type
+          s1_sum <- rowSums(SummarizedExperiment::assay(s1) > 0)
+          ## remove NA
+          s1_sum[is.na(s1_sum)] <- 0
+          ## retain genes expressed in > 5% of cells per type
+          s1 <- s1[s1_sum / ncol(s1) >= 0.05, ]
+        }
+        if (mtd1 == "nebula") {
+          # Subset counts matrix
+          s1 <- ld1[["counts"]][ , ld1[["meta"]][[c]] == ld1[["CellType"]][[i]]] # nolint
+          # Subset id column
+          s1_id <- ld1[["meta"]][ ld1[["meta"]][[c]] == ld1[["CellType"]][[i]], ] # nolint
+          s1 <- list(
+            "counts" = s1,
+            "id" = s1_id[[v]],
+            "formula" = model.matrix(
+              as.formula(
+                paste(
+                  "~", form[[1]], "+",
+                  form[[2]],
+                  sep = " "
+                )
+              ),
+              data = s1_id
+            )
+          )
+        }
+        return(s1) # nolint
+      }
+    ), ld1[["CellType"]])
+    return(list_dgea_sub) # nolint
+  }
+  #---- Function: run MAST----
+  fun.run.mast <- function( # nolint
     glm_fit,
     comp1,
     ct2,
@@ -213,231 +240,219 @@ sc_diff <- function( # nolint
     )
     return(s1_dt) # nolint
   }
-  # Run DGEA/DA
-  if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
-    list_dgea_res <- setNames(parallel::mclapply(
-      mc.cores = 4,
-      seq.int(1, length(list_dgea_sub), 1),
-      function(x) {
-        tryCatch(
-          {
-            ### create glm (generalized linear model for each variable)
-            s1_fit <- MAST::zlm( # nolint
-              formula = as.formula(
-                paste(
-                  "~", form[[1]], "+",
-                  form[[2]],
-                  sep = " "
-                )
-              ),
-              list_dgea_sub[[x]],
-              method = "glm",
-              ebayes = FALSE,
-              parallel = FALSE
-            )
-            d1 <- d_mast_sum_fun(
-              s1_fit,
-              mc,
-              names(list_dgea_sub)[[x]],
-              mn
-            )
-            print(
-              paste(
-                "Differential analysis completed for",
-                names(list_dgea_sub)[[x]]
-              )
-            )
-            return(d1)
-          },
-          error = function(e) {
-            print(
-              paste(
-                "Differential analysis unsuccessful for",
-                names(list_dgea_sub)[[x]]
-              )
-            )
-          }
-        )
-      }
-    ), names(list_dgea_sub))
-  }
-  # Sequential processing
-  if (Sys.info()[["sysname"]] == "Windows" || cores == 1) {
-    list_dgea_res <- setNames(lapply(
-      seq.int(1, length(list_dgea_sub), 1),
-      function(x) {
-        tryCatch(
-          {
-            ### create glm (generalized linear model for each variable)
-            s1_fit <- MAST::zlm( # nolint
-              formula = as.formula(
-                paste(
-                  "~", form[[1]], "+",
-                  form[[2]],
-                  sep = " "
-                )
-              ),
-              list_dgea_sub[[x]],
-              method = "glm",
-              ebayes = FALSE,
-              parallel = FALSE
-            )
-            d1 <- d_mast_sum_fun(
-              s1_fit,
-              mc,
-              names(list_dgea_sub)[[x]],
-              mn
-            )
-            print(
-              paste(
-                "Differential analysis completed for",
-                names(list_dgea_sub)[[x]]
-              )
-            )
-            return(d1)
-          },
-          error = function(e) {
-            print(
-              paste(
-                "Differential analysis unsuccessful for",
-                names(list_dgea_sub)[[x]]
-              )
-            )
-          }
-        )
-      }
-    ), names(list_dgea_sub))
-  }
-  # Combine results
-  dgea_comb <- dplyr::bind_rows(list_dgea_res[lengths(list_dgea_res) > 1])
-  dgea_res <- dgea_comb[!is.na(dgea_comb[["logFC"]]), ]
-  dgea_res[["CellType"]] <- factor(
-    dgea_res[["CellType"]],
-    levels = gtools::mixedsort(
-      unique(dgea_res[["CellType"]])
+  #---- Function: run nebula ----
+  fun.run.nebula <- function(ob1, ct2) { # nolint
+    dgea_neb <- nebula::nebula(
+      count  = ob1[["counts"]],
+      id     = ob1[["id"]],
+      pred   = ob1[["formula"]],
+      offset = log(colSums(ob1[["counts"]]) + 1),
+      model  = "NBLMM",   # Negative Binomial Linear Mixed Model
+      ncore = 1
     )
-  )
-  dgea_res <- dgea_res[
-    order(dgea_res[["CellType"]], dgea_res[["GENE"]]),
-  ]
-  ## isolate DGEA results with errors
-  dgea_error <- unlist(list_dgea_res[lengths(list_dgea_res) <= 1])
-  ## return genes for each result with missing logFC
-  ## and combine with filtered list
-  dgea_miss <- dgea_comb[
-    is.na(dgea_comb[["logFC"]]),
-    c("CellType", "GENE")
-  ]
-  dgea_miss[["Note"]] <- "Only expressed in MAST comparison group"
-  dgea_miss <- dplyr::bind_rows(
-    dgea_miss,
-    list_miss
-  )
-  dgea_miss[["CellType"]] <- factor(
-    dgea_miss[["CellType"]],
-    levels = gtools::mixedsort(
-      unique(dgea_miss[["CellType"]])
+    dgea_neb[["summary"]][["FDR"]] <- p.adjust(
+      dgea_neb[["summary"]][[8]], method = "fdr"
     )
-  )
-  dgea_miss <- dgea_miss[
-    order(dgea_miss[["CellType"]], dgea_miss[["GENE"]]),
-  ]
-  # Output final results
-  dgea_sum <- list(
-    "results" = dplyr::bind_rows(dgea_res),
-    "missing" = dplyr::bind_rows(dgea_miss),
-    "errors" = dplyr::bind_rows(dgea_error)
-  )
-  dgea_sum[["results"]][["H.qval"]] <- p.adjust(
-    dgea_sum[["results"]][["H.pval"]],
-    method = "BH"
-  )
-  dgea_sum[["results"]][["log2FC"]] <- log2(
-    exp(dgea_sum[["results"]][["logFC"]])
-  )
-  dgea_sum[["results"]] <- dplyr::select(
-    dgea_sum[["results"]],
-    1:4,
-    H.qval, # nolint
-    log2FC, # nolint
-    everything() # nolint
-  )
-  ## Add TF names for differential accessibility analysis
-  ## of chromvar transcription factor activity scores
-  if (assy == "chromvar") {
-    if (Sys.info()[["sysname"]] == "Windows" || cores == 1) {
-      list_tf <- dplyr::bind_rows(
-        lapply(
-          seq.int(
-            1,
-            length(
-              unique(
-                c(dgea_sum[["results"]][["GENE"]], dgea_sum[["missing"]][["GENE"]]) # nolint
-              )
-            ),
-            1
-          ),
-          function(i) {
-            ltf <- unique(
-              c(
-                dgea_sum[["results"]][["GENE"]],
-                dgea_sum[["missing"]][["GENE"]]
-              )
-            )
-            ltf1 <- data.frame(
-              "GENE" = ltf[[i]],
-              "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[i]])) # nolint
-            )
-            return(ltf1) # nolint
-          }
+    dgea_neb[["summary"]][["log2FC"]] <- log2(
+      exp(dgea_neb[["summary"]][[2]])
+    )
+    dgea_neb[["summary"]][["CellType"]] <- ct2
+    dgea_neb <- setNames(
+      dplyr::select(dgea_neb[["summary"]], "CellType", "gene", "log2FC", 5, 8, "FDR"), # nolint
+      c(
+        "CellType",
+        "GENE",
+        paste(
+          "log2FC:",
+          unique(dgea1[["meta"]][[form[[1]]]])[[1]],
+          "_",
+          unique(dgea1[["meta"]][[form[[1]]]])[[2]],
+          sep = ""
+        ),
+        "std_error",
+        "pval",
+        "FDR"
+      )
+    )
+    return(dgea_neb) # nolint
+  }
+  #---- Function: format results ----
+  fun.format <- function(list_ob1) { # nolint
+    d1 <- list_ob1
+    if (mtd1 == "MAST") {
+      dgea_comb <- dplyr::bind_rows(d1[lengths(d1) > 1])
+      dgea_res <- dgea_comb[!is.na(dgea_comb[["logFC"]]), ]
+      dgea_res[["CellType"]] <- factor(
+        dgea_res[["CellType"]],
+        levels = gtools::mixedsort(
+          unique(dgea_res[["CellType"]])
         )
       )
+      dgea_res <- dgea_res[
+        order(dgea_res[["CellType"]], dgea_res[["GENE"]]),
+      ]
+      # Output final results
+      dgea_sum <- dgea_res
+      dgea_sum[["H.qval"]] <- p.adjust(
+        dgea_sum[["H.pval"]],
+        method = "BH"
+      )
+      dgea_sum[["log2FC"]] <- log2(
+        exp(dgea_sum[["logFC"]])
+      )
+      dgea_sum <- dplyr::select(
+        dgea_sum,
+        1:4,
+        H.qval, # nolint
+        log2FC, # nolint
+        everything() # nolint
+      )
     }
-    if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
+    if (mtd1 == "nebula") {
+      dgea_comb <- dplyr::bind_rows(d1[lengths(d1) > 1])
+      dgea_comb[["CellType"]] <- factor(
+        dgea_comb[["CellType"]],
+        levels = gtools::mixedsort(
+          unique(dgea_comb[["CellType"]])
+        )
+      )
+      dgea_sum <- dgea_comb[
+        order(dgea_comb[["CellType"]], dgea_comb[["GENE"]]),
+      ]
+    }
+    return(dgea_sum) # nolint
+  }
+  #---- Function: add transcription factor motif names ----
+  fun.add.tfs <- function(ob1, cores1 = 1) { # nolint
+    d1 <- dgea4
+    tf.fun <- function(gname) { # nolint
+      library(TFBSTools) # nolint
+      library(JASPAR2020) # nolint
+      ltf <- unique(d1[["GENE"]])
+      ltf1 <- data.frame(
+        "GENE" = ltf[[gname]],
+        "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[gname]])) # nolint
+      )
+      return(ltf1) # nolint
+    }
+    if (Sys.info()[["sysname"]] != "Windows" && cores1 > 1) {
       list_tf <- dplyr::bind_rows(
         parallel::mclapply(
-          mc.cores = 12,
-          seq.int(
-            1,
-            length(
-              unique(
-                c(dgea_sum[["results"]][["GENE"]], dgea_sum[["missing"]][["GENE"]]) # nolint
-              )
-            ),
-            1
-          ),
-          function(i) {
-            ltf <- unique(
-              c(
-                dgea_sum[["results"]][["GENE"]],
-                dgea_sum[["missing"]][["GENE"]]
-              )
-            )
-            ltf1 <- data.frame(
-              "GENE" = ltf[[i]],
-              "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[i]])) # nolint
-            )
-            return(ltf1) # nolint
-          }
+          mc.cores = cores1,
+          seq.int(1, length(unique(d1[["GENE"]])), 1),
+          function(j) tf.fun(j)
+        )
+      )
+    } else {
+      list_tf <- dplyr::bind_rows(
+        lapply(
+          seq.int(1, length(unique(d1[["GENE"]])), 1),
+          function(j) tf.fun(j)
         )
       )
     }
-    dgea_sum[["results"]] <- dplyr::select(
-      dplyr::left_join(
-        dgea_sum[["results"]],
-        list_tf,
-        by = "GENE"
-      ),
-      "CellType", "Comparison", "GENE", "TF", everything() # nolint
+    d1 <- dplyr::select(
+      dplyr::left_join(d1, list_tf, by = "GENE"),
+      "CellType", "GENE", "TF", everything() # nolint
     )
-    dgea_sum[["missing"]] <- dplyr::select(
-      dplyr::left_join(
-        dgea_sum[["missing"]],
-        list_tf,
-        by = "GENE"
-      ),
-      "CellType", "GENE", "TF", "Note"
-    )
+    return(d1) # nolint
   }
-  return(dgea_sum)
+  #---- Run test and output results ----
+  # Input
+  dgea1 <- fun.input(d, assy, slt)
+  # Subsetting
+  dgea2 <- fun.subset(dgea1)
+  # Run test
+  if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
+    dgea3 <- setNames(parallel::mclapply(
+      mc.cores = cores,
+      seq.int(1, length(dgea2), 1),
+      function(i) {
+        if (mtd1 == "MAST") {
+          tryCatch({
+            cat("MAST started for:", names(dgea2)[[i]], "\n")
+            ### create glm (generalized linear model for each variable)
+            s1_fit <- MAST::zlm( # nolint
+              formula = dgea1[["Formula"]],
+              dgea2[[i]],
+              method = "glm",
+              ebayes = FALSE,
+              parallel = FALSE
+            )
+            d1 <- fun.run.mast(
+              s1_fit,
+              paste(form[[1]], unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[1]], sep = ""), # nolint
+              names(dgea2)[[i]],
+              paste(
+                unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[1]], # nolint
+                "vs.",
+                unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[2]] # nolint
+              )
+            )
+            cat("MAST successful for:", names(dgea2)[[i]], "\n")
+          }, error = function(e) {
+            cat("MAST failed for:", names(dgea2)[[i]], "\n")
+          })
+        }
+        if (mtd1 == "nebula") {
+          tryCatch({
+            cat("NEBULA started for:", names(dgea2)[[i]], "\n")
+            d1 <- fun.run.nebula(dgea2[[i]], names(dgea2)[[i]])
+            cat("NEBULA successful for:", names(dgea2)[[i]], "\n")
+          }, error = function(e) {
+            cat("NEBULA failed for:", names(dgea2)[[i]], "\n")
+          })
+        }
+        return(d1) # nolint
+      }
+    ), names(dgea2))
+  } else {
+    dgea3 <- setNames(lapply(
+      seq.int(1, length(dgea2), 1),
+      function(i) {
+        if (mtd1 == "MAST") {
+          tryCatch({
+            cat("MAST started for:", names(dgea2)[[i]], "\n")
+            ### create glm (generalized linear model for each variable)
+            s1_fit <- MAST::zlm( # nolint
+              formula = dgea1[["Formula"]],
+              dgea2[[i]],
+              method = "glm",
+              ebayes = FALSE,
+              parallel = FALSE
+            )
+            d1 <- fun.run.mast(
+              s1_fit,
+              paste(form[[1]], unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[1]], sep = ""), # nolint
+              names(dgea2)[[i]],
+              paste(
+                unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[1]], # nolint
+                "vs.",
+                unique(SingleCellExperiment::colData(dgea1[[1]])[[form[[1]]]])[[2]] # nolint
+              )
+            )
+            cat("MAST successful for:", names(dgea2)[[i]], "\n")
+          }, error = function(e) {
+            cat("MAST failed for:", names(dgea2)[[i]], "\n")
+          })
+        }
+        if (mtd1 == "nebula") {
+          tryCatch({
+            cat("NEBULA started for:", names(dgea2)[[i]], "\n")
+            d1 <- fun.run.nebula(dgea2[[i]], names(dgea2)[[i]])
+            cat("NEBULA successful for:", names(dgea2)[[i]], "\n")
+          }, error = function(e) {
+            cat("NEBULA failed for:", names(dgea2)[[i]], "\n")
+          })
+        }
+        return(d1) # nolint
+      }
+    ), names(dgea2))
+  }
+  # Combine results for each cell type and save
+  dgea4 <- fun.format(dgea3)
+  if (assy == "chromvar") {
+    dgea4 <- fun.add.tfs(dgea4, cores1 = 12) # nolint
+  }
+  return(dgea4) # nolint
 }

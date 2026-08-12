@@ -1,8 +1,8 @@
 ---
-title: "WASP_tutorial_v4-31"
+title: "WASP_tutorial_v4-32"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{WASP_tutorial_v4-31}
+  %\VignetteIndexEntry{WASP_tutorial_v4-32}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,12 +12,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
-
-## Run Shiny App
-```{r}
-library(WASP)
-# run_app()
 ```
 
 ## Standard Setup
@@ -291,63 +285,25 @@ sc_panel_gex(
 ```{r dgea, echo=T, fig.align= "center", out.width="90%", results=T, message=F, warning=F,eval=FALSE}
 # Load data
 d1 <- readRDS("analyze/scdata_reclus.rds")
-# DGEA
-## Perform test
+# NEBULA DGEA
+## Perfom test
 scdgea <- sc_diff(
-  so = d1,
-  mast_comp = "GroupG1",
-  mast_name = "G1 vs. G2",
+  dsc1,
+  ct = "CellType",
   form1 = c("Group", "nFeature_SCT"),
-  cores = 4
-)
-## Save results
-lapply(
-  seq.int(1, length(scdgea), 1),
-  function(x) {
-    write.table(
-      scdgea[[x]],
-      file = paste(
-        "analyze/dgea_",
-        names(scdgea)[[x]],
-        ".txt",
-        sep = ""
-      ),
-      sep = "\t",
-      row.names = FALSE
-    )
-    print(paste(names(scdgea)[[x]], "saved!"))
-  }
+  cores = 2
 )
 # DA
 ## Perform test
 scdact <- sc_diff(
   so = d1,
-  mast_comp = "GroupG1",
-  mast_name = "G1 vs. G2",
   form1 = c("Group", "nFeature_SCT"),
   cores = 4,
   asy = "chromvar",
-  slot1 = "data"
+  slot1 = "data",
+  mtd = "MAST"
 )
 head(scdact[["results"]])
-## Save results
-lapply(
-  seq.int(1, length(scdact), 1),
-  function(x) {
-    write.table(
-      scdact[[x]],
-      file = paste(
-        "analyze/da_",
-        names(scdact)[[x]],
-        ".txt",
-        sep = ""
-      ),
-      sep = "\t",
-      row.names = FALSE
-    )
-    print(paste(names(scdact)[[x]], "saved!"))
-  }
-)
 ```
 
 ## Volcano Plots
