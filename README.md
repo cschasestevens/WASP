@@ -1,4 +1,4 @@
-# WASP v4.32 (20260812)
+# WASP v4.33 (20260819)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -39,7 +39,10 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * CellChat,
         * biomaRt (Bioconductor),
         * topGO (Bioconductor),
-        * nebula
+        * nebula,
+        * lme4,
+        * lmerTest,
+        * limma
     * Imports: 
         * ggplot2,
         * viridis,
@@ -113,6 +116,8 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.33
+    * Adds lme4-based linear mixed effects model for differential accessibility analysis of chromvar assays to sc_diff function.
 * 4.32
     * Added nebula DGEA to methods available in sc_diff.
     * nebula DGEA/DA is now the default method implemented by sc_diff.
