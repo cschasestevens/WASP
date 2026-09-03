@@ -122,7 +122,7 @@ sc_diff <- function( # nolint
         )
       }, error = function(e) {
         # Return NAs for motifs where the model fails to converge
-        message("Model failed for motif: ", motif, " — ", e$message)
+        message("Model failed for motif: ", motif, e$message)
       })
       return(dout) # nolint
     }

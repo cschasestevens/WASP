@@ -199,6 +199,20 @@ sc_multiome_params <- function(
         list.files(dir2),
         "/filtered_feature_bc_matrix/features.tsv.gz",
         sep = ""
+      ),
+      # Path to per barcode metrics
+      Path.meta = paste(
+        dir2,
+        list.files(dir2),
+        "/per_barcode_metrics.csv",
+        sep = ""
+      ),
+      # Path to matrix folder
+      Path.matrix = paste(
+        dir2,
+        list.files(dir2),
+        "/raw_feature_bc_matrix/",
+        sep = ""
       )
     ),
     # Dataset-specific columns

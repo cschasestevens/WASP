@@ -1,4 +1,4 @@
-# WASP v4.33 (20260819)
+# WASP v4.34 (20260902)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -42,7 +42,8 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * nebula,
         * lme4,
         * lmerTest,
-        * limma
+        * limma,
+        * Gviz
     * Imports: 
         * ggplot2,
         * viridis,
@@ -70,7 +71,7 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * shadowtext,
         * stringr,
         * motifmatchr (Bioconductor),
-        * shiny
+        * Gviz
 
 ### Installation
 * Run the following in a new R session on the command line or within R-Studio:
@@ -116,6 +117,9 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.34
+    * Added functions for enhancer-gene interactions in multiome datasets based on scE2G.
+    * Updated sc_multiome_params function to include scE2G required file paths.
 * 4.33
     * Adds lme4-based linear mixed effects model for differential accessibility analysis of chromvar assays to sc_diff function.
 * 4.32

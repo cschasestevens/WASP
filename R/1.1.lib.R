@@ -40,31 +40,31 @@ col_grad <- function(
   scm = 1
 ) {
   if (scm == 1) {
-    cat("Using COMb gradient", "#1:", "viridis", "\n")
+    cat("Using WASP gradient", "#1:", "viridis", "\n")
     c1 <- viridis::viridis(12)
   }
   if (scm == 2) {
-    cat("Using COMb gradient", "#2:", "YlOrBr", "\n")
+    cat("Using WASP gradient", "#2:", "YlOrBr", "\n")
     c1 <- RColorBrewer::brewer.pal(name = "YlOrBr", n = 9)
   }
   if (scm == 3) {
-    cat("Using COMb gradient", "#3:", "RWB heatmap B", "\n")
+    cat("Using WASP gradient", "#3:", "RWB heatmap B", "\n")
     c1 <- c("#2e86c1", "white", "#f5b7b1", "#e74c3c")
   }
   if (scm == 4) {
-    cat("Using COMb gradient", "#4:", "Zero/positive scale", "\n")
+    cat("Using WASP gradient", "#4:", "Zero/positive scale", "\n")
     c1 <- c("lightblue", "red", "darkred")
   }
   if (scm == 5) {
-    cat("Using COMb gradient", "#5:", "RWB heatmap A", "\n")
+    cat("Using WASP gradient", "#5:", "RWB heatmap A", "\n")
     c1 <- c("#2e86c1", "white", "#e74c3c")
   }
   if (scm == 6) {
-    cat("Using COMb gradient", "#6:", "RWB heatmap C", "\n")
+    cat("Using WASP gradient", "#6:", "RWB heatmap C", "\n")
     c1 <- c("dodgerblue4", "#2e86c1", "white", "#e74c3c")
   }
   if (scm == 7) {
-    cat("Using COMb gradient", "#7:", "RWB heatmap D", "\n")
+    cat("Using WASP gradient", "#7:", "RWB heatmap D", "\n")
     c1 <- c("dodgerblue4", "#2e86c1", "white", "#e74c3c", "darkred") # nolint
   }
   return(c1) # nolint
@@ -100,7 +100,7 @@ sc_theme1 <- function(
   size_leg = 0.2,
   leg = c(0.95, 0.95)
 ) {
-  cat("Adding default COMb plot theme", "\n")
+  cat("Adding default WASP plot theme", "\n")
   #---- Plot legend ----
   thm_leg_main <- ggplot2::theme(
     legend.title = ggplot2::element_text(
