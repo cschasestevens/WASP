@@ -23,6 +23,6 @@ with scE2G pipeline, which is run separately using the CLI.
 }
 \examples{
 
-sc_e2g_input("path/to/data/folder", df1)
+# sc_e2g_input("path/to/data/folder", df1)
 
 }

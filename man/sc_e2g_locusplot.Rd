@@ -50,6 +50,9 @@ transcription start site for selected gene region.}
 
 \item{font_size}{Plot font size.}
 
+\item{plot_int_anchors}{Logical indicating whether to plot
+anchors on the interaction track plot.}
+
 \item{atac_interval}{bp interval for binning and smoothing
 ATAC peaks.}
 
@@ -61,9 +64,6 @@ for smaller neighboring peaks.}
 
 \item{show_scale_axis}{Show axis scales for ATAC peak signal
 and heatmap interaction scores.}
-
-\item{plot_int_achors}{Logical indicating whether to plot
-anchors on the interaction track plot.}
 }
 \value{
 Combined track plot visualizing enhancer-gene expression

@@ -1,4 +1,4 @@
-# WASP v4.34 (20260903)
+# WASP v4.34 (20260904)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -83,7 +83,7 @@ devtools::install_github(
   ref = "main", 
   build_vignettes = TRUE
 )
-# For latest R version (v4.5.3)
+# For R versions >= 4.5.3
 pak::pak("cschasestevens/WASP")
 ```
 
@@ -117,6 +117,8 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.35
+    * Miscellaneous fixes for WASP functions sc_recluster and sc_heatmap.
 * 4.34
     * Added functions for enhancer-gene interactions in multiome datasets based on scE2G.
     * Updated sc_multiome_params function to include scE2G required file paths.

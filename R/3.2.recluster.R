@@ -142,8 +142,7 @@ sc_recluster <- function(
       fs_r = fs_r,
       cl_c = cl_c,
       cl_r = cl_r,
-      rot_c = rot_c,
-      col1 = col1
+      rot_c = rot_c
     )
     # Cell type predictions
     print(paste("---- Step 5: Predict cell types ----"))
@@ -256,7 +255,6 @@ sc_recluster <- function(
       cl_c = cl_c,
       cl_r = cl_r,
       rot_c = rot_c,
-      col1 = col1,
       mark_dir = mdir
     )
     # Cell type predictions
@@ -279,7 +277,7 @@ sc_recluster <- function(
     )
   }
   print("Reclustering completed!")
-  return(
+  return( # nolint
     list = c(
       "data" = d,
       "umap_panel" = d_umap1,

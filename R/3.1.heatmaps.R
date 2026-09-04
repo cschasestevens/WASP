@@ -519,6 +519,14 @@ sc_dotplot <- function( # nolint
           }
         )
       )
+      l1 <- unlist(
+        lapply(
+          l1,
+          function(x) {
+            name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
+          }
+        )
+      )
       list_tf <- data.frame(
         "ID" = rownames(d),
         "Name" = list_tf
@@ -1032,7 +1040,7 @@ sc_dotplot <- function( # nolint
       )
     )
   }
-  return(
+  return( # nolint
     list(
       "Input" = d1_prc,
       "Plot" = p_dot

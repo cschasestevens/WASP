@@ -429,7 +429,7 @@ sc_e2g_locusplot <- function(
             chromosome = track_gene[["chromosome"]],
             type = "heatmap",
             data = "score",
-            gradient = lparam[["theme_color_continuous"]],
+            gradient = if (length(S4Vectors::mcols(heat_grange)[["score"]]) == 1) c("grey75") else lparam[["theme_color_continuous"]], # nolint
             background.title = "white",
             col.title = lparam[["font_color"]],
             cex.title = lparam[["font_size"]],

@@ -52,8 +52,6 @@ per cell type from a Seurat Object.
 
 # scdgea <- sc_diff(
 #   so = d,
-#   mast_comp = "AirwaySAE",
-#   mast_name = "SAE vs. LAE",
 #   form1 = c("Group", "nFeature_SCT")
 # )
 
