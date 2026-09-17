@@ -78,12 +78,12 @@ sc_e2g_input <- function(
 #' interactions for a specified gene region.
 #' @examples
 #'
-#' sc_e2g_locusplot(
-#'   path_proj = "/directory/to/results/",
-#'   path_e2g = "path_proj/path/to/prediction.tsv.gz",
-#'   path_gtf = "path_proj/path/to/gtffile.gtf.gz",
-#'   gene_name = "gene name"
-#' )
+#' # sc_e2g_locusplot(
+#' #   path_proj = "/directory/to/results/",
+#' #   path_e2g = "path_proj/path/to/prediction.tsv.gz",
+#' #   path_gtf = "path_proj/path/to/gtffile.gtf.gz",
+#' #   gene_name = "gene name"
+#' # )
 #'
 #' @import Gviz
 #' @export

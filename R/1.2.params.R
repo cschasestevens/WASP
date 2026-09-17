@@ -133,7 +133,7 @@ sc_multiome_params <- function(
   dir1 = "ref/",
   dir2 = "data/"
 ) {
-  if(!file.exists(paste(dir1, "ref.gencode45.formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
+  if(!file.exists(paste(dir1, "ref_gtf_formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
     print("Formatting gene annotation and importing reference genome...")
     ## Format gene annotation .gtf
     ref1 <- paste(dir1, gtf_path, sep = "")
@@ -146,14 +146,14 @@ sc_multiome_params <- function(
       ref_gene1,
       pruning.mode = "coarse"
     )
-    saveRDS(rformat, paste(dir1, "ref.gencode45.formatted.rds", sep = ""))
+    saveRDS(rformat, paste(dir1, "ref_gtf_formatted.rds", sep = ""))
     ## Import genome FASTA
     fa_genome <- Rsamtools::FaFile(paste(dir1, fa_path, sep = ""))
   }
-  if(file.exists(paste(dir1, "ref.gencode45.formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
+  if(file.exists(paste(dir1, "ref_gtf_formatted.rds", sep = "")) && !exists("fa_genome")) { # nolint
     print("Formatted gene annotation already exists; using formatted file...")
     ## Import formatted gene annotation .gtf
-    rformat <- readRDS(paste(dir1, "ref.gencode45.formatted.rds", sep = ""))
+    rformat <- readRDS(paste(dir1, "ref_gtf_formatted.rds", sep = ""))
     ## Import genome FASTA
     fa_genome <- Rsamtools::FaFile(paste(dir1, fa_path, sep = ""))
   }
@@ -225,5 +225,39 @@ sc_multiome_params <- function(
       "ref.gtf" = rformat,
       "ref.fa" = fa_genome
     )
+  )
+}
+
+#' Format GENCODE Gene Annotation
+#'
+#' Creates a data frame of processing parameters
+#' used in multiome data processing by Seurat.
+#'
+#' @param path_ref Reference files path.
+#' @param path_gtf Name of gtf file within reference directory.
+#' @return A formatted gene annotation object.
+#' @examples
+#'
+#' # sc_format_gtf()
+#'
+#' @export
+sc_format_gtf <- function(
+  path_ref = "ref/",
+  path_gtf = "gencode.v50.annotation.gtf"
+) {
+  cat("Formatting gene annotation:", path_gtf, "\n")
+  ref1 <- paste(path_ref, path_gtf, sep = "")
+  ref_gene1 <- rtracklayer::import(ref1)
+  ref_gene1$gene_biotype <- ref_gene1$gene_type
+  ## Add tx_id column for compatibility
+  ref_gene1$tx_id <- ref_gene1$transcript_id
+  GenomeInfoDb::seqlevelsStyle(ref_gene1) <- "UCSC"
+  rformat <- GenomeInfoDb::keepStandardChromosomes(
+    ref_gene1,
+    pruning.mode = "coarse"
+  )
+  saveRDS(rformat, paste(path_ref, "ref_gtf_formatted.rds", sep = ""))
+  return( # nolint
+    cat("Formatted gene annotation for", path_gtf, "successfully saved to", paste(path_ref, "ref_gtf_formatted.rds", sep = "")) # nolint
   )
 }
