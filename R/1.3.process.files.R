@@ -426,6 +426,7 @@ sc_plot_rho <- function(
 #' @param pathmac Path to MACS3 installation. This must be specified
 #' to avoid errors in peak calling through Signac, which only supports
 #' MACS2 by default. Specifying the path manually avoids this error.
+#' @param pathfragtk Path to fragtk installation.
 #' @return A list containing the processed multimodal Seurat object,
 #' processing parameters, and QC plots.
 #' @examples
@@ -461,7 +462,8 @@ sc_multiome_process <- function(
   perc_mt,
   nsm_high,
   tss_low,
-  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3",
+  pathfragtk = "/home/ncsteven/fragtk/target/release/fragtk"
 ) {
   RNGkind("L'Ecuyer-CMRG")
   set.seed(1234)
@@ -559,10 +561,17 @@ sc_multiome_process <- function(
   # Add nucleosome signal and TSS enrichment values
   print("---- Step 7: Calculate Nucleosome signal and TSS enrichment ----") # nolint
   Seurat::DefaultAssay(d1) <- "ATAC"
-  d1 <- Signac::NucleosomeSignal(d1)
-  d1 <- Signac::TSSEnrichment(d1)
+  d1 <- Signac::ATACqc(d1, fragtk.path = pathfragtk) # nolint
   # QC plot
   print("---- Step 8: Run QC to remove cells based on threshold ----")
+  # Find clusters
+  Seurat::DefaultAssay(d1) <- "RNA"
+  d1 <- Seurat::NormalizeData(d1)
+  d1 <- Seurat::ScaleData(d1)
+  d1 <- Seurat::FindVariableFeatures(d1, nfeatures = 3000)
+  d1 <- Seurat::RunPCA(d1, features = Seurat::VariableFeatures(object = d1)) # nolint
+  d1 <- Seurat::FindNeighbors(d1, dims = 1:30)
+  d1 <- Seurat::FindClusters(d1, resolution = 0.8)
   d1qc_pre <- sc_violin(
     so = d1,
     ct_col = "seurat_clusters",
@@ -581,8 +590,8 @@ sc_multiome_process <- function(
       d1[["nCount_RNA"]] < rna_high &
       d1[["percent.mt"]] < perc_mt &
       d1[["nCount_RNA"]] > rna_low &
-      d1[["nucleosome_signal"]] < nsm_high &
-      d1[["TSS.enrichment"]] > tss_low
+      d1[["Nucleosome_signal"]] < nsm_high &
+      d1[["TSS_enrichment"]] > tss_low
   ]
   remove(d1)
   gc(reset = TRUE)
@@ -594,14 +603,15 @@ sc_multiome_process <- function(
       "nCount_RNA",
       "percent.mt",
       "nCount_ATAC",
-      "TSS.enrichment",
-      "nucleosome_signal"
+      "TSS_enrichment",
+      "Nucleosome_signal"
     )
   )
   # Call ATAC peaks using default parameters
   ## NOTE: Ensure conda is activated otherwise MACS3
   ## will not be found!!
   print("---- Step 9: Call ATAC peaks ----")
+  Seurat::DefaultAssay(d1f) <- "ATAC"
   d1pk <- Signac::CallPeaks(
     d1f,
     macs2.path = pathmac
@@ -684,6 +694,7 @@ sc_multiome_process <- function(
 #' @param pathmac Path to MACS3 installation. This must be specified
 #' to avoid errors in peak calling through Signac, which only supports
 #' MACS2 by default. Specifying the path manually avoids this error.
+#' @param pathfragtk Path to fragtk installation.
 #' @return A processed list of 10X multiome sample files converted
 #' into Seurat objects with a summary list of QC and processing details.
 #' @examples
@@ -704,7 +715,8 @@ sc_process_multiome_batch <- function(
   tss_low = 2,
   parl = FALSE,
   core_num = NULL,
-  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3",
+  pathfragtk = "/home/ncsteven/fragtk/target/release/fragtk"
 ) {
   dfp <- df_par
   if (Sys.info()[["sysname"]] != "Windows" && parl == TRUE) {
@@ -742,7 +754,9 @@ sc_process_multiome_batch <- function(
             # TSS enrichment lower limit
             tss_low,
             # MACS3 installation path
-            pathmac
+            pathmac,
+            # fragtk installation path
+            pathfragtk
           )
         }
       ),
@@ -780,7 +794,11 @@ sc_process_multiome_batch <- function(
           # Nucleosome signal upper limit
           nsm_high,
           # TSS enrichment lower limit
-          tss_low
+          tss_low,
+          # MACS3 installation path
+          pathmac,
+          # fragtk installation path
+          pathfragtk
         )
       }
     ),
@@ -822,7 +840,11 @@ sc_process_multiome_batch <- function(
           # Nucleosome signal upper limit
           nsm_high,
           # TSS enrichment lower limit
-          tss_low
+          tss_low,
+          # MACS3 installation path
+          pathmac,
+          # fragtk installation path
+          pathfragtk
         )
       }
     ),

@@ -16,7 +16,8 @@ sc_multiome_process(
   perc_mt,
   nsm_high,
   tss_low,
-  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3",
+  pathfragtk = "/home/ncsteven/fragtk/target/release/fragtk"
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ low quality cells.}
 \item{pathmac}{Path to MACS3 installation. This must be specified
 to avoid errors in peak calling through Signac, which only supports
 MACS2 by default. Specifying the path manually avoids this error.}
+
+\item{pathfragtk}{Path to fragtk installation.}
 }
 \value{
 A list containing the processed multimodal Seurat object,

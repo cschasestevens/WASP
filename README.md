@@ -1,4 +1,4 @@
-# WASP v4.36 (20260917)
+# WASP v4.37 (20260918)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -117,6 +117,8 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.37
+    * Updated sc_multiome_process for compatibility with newer versions of Signac and Seurat.
 * 4.36
     * Revised sc_multiome_params function to check for formatted genome in reference folder.
     * Created sc_format_gtf function for quickly formatting gtf files for use in multiome analysis pipeline.

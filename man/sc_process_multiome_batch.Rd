@@ -17,7 +17,8 @@ sc_process_multiome_batch(
   tss_low = 2,
   parl = FALSE,
   core_num = NULL,
-  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3"
+  pathmac = "/home/ncsteven/miniconda3/envs/r-env/bin/macs3",
+  pathfragtk = "/home/ncsteven/fragtk/target/release/fragtk"
 )
 }
 \arguments{
@@ -52,6 +53,8 @@ in parallel (Linux and WSL2 only).}
 \item{pathmac}{Path to MACS3 installation. This must be specified
 to avoid errors in peak calling through Signac, which only supports
 MACS2 by default. Specifying the path manually avoids this error.}
+
+\item{pathfragtk}{Path to fragtk installation.}
 }
 \value{
 A processed list of 10X multiome sample files converted
