@@ -5,6 +5,7 @@
 \title{Batch Integration of scRNA-Seq and Multiome Datasets}
 \usage{
 sc_integrate_data(
+  dir_proc = "processing/",
   l_so,
   l_par,
   proc_mode,
@@ -14,6 +15,8 @@ sc_integrate_data(
 )
 }
 \arguments{
+\item{dir_proc}{Working directory for processing samples.}
+
 \item{l_so}{List of processed Seurat objects to be integrated
 from any sc_process function.}
 

@@ -580,8 +580,8 @@ sc_multiome_process <- function(
       "nCount_RNA",
       "percent.mt",
       "nCount_ATAC",
-      "TSS.enrichment",
-      "nucleosome_signal"
+      "TSS_enrichment",
+      "Nucleosome_signal"
     )
   )
   d1f <- d1[

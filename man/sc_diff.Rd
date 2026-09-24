@@ -28,7 +28,9 @@ Seurat object to pull from the chosen assay.}
 
 \item{var_id}{Sample ID column name.}
 
-\item{mtd}{DGEA/DA method to use (either "MAST" or "nebula").
+\item{mtd}{DGEA/DA method to use (either "MAST", "nebula",
+"lme", "limma", or "wilcox"). Differential accessbility tests
+run on chromVAR assays default to "wilcox".
 Set to nebula by default.}
 
 \item{form1}{Formula to use for MAST generalized linear model. Usually

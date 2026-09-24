@@ -519,19 +519,15 @@ sc_predict2 <- function(
 sc_save_pred <- function(so_pred, file1, dir1) {
   d1 <- so_pred
   # Predicted Seurat object
-  saveRDS(d1, paste(dir1, file1, sep = "_"))
-  # Score distribution
-  ggplot2::ggsave(
-    paste(dir1, file1, "distribution.png", sep = "_"),
-    d1[["predicted_dist"]],
-    width = 8,
-    height = 8,
-    dpi = 300
-  )
+  if (file.exists(paste0(dir1, file1, ".rds"))) {
+    cat("RDS file with specified name already exists.", "\n")
+  } else {
+    saveRDS(d1, paste0(dir1, file1, ".rds"))
+  }
   # Predicted types (all cells)
   write.table(
-    d1[["predicted_all"]],
-    paste(dir1, file1, "predicted_all.txt", sep = "_"),
+    d1[["predictions"]][["predicted_all"]],
+    paste0(dir1, file1, "_predicted_all.txt"),
     row.names = FALSE,
     col.names = TRUE,
     sep = "\t"
@@ -539,7 +535,7 @@ sc_save_pred <- function(so_pred, file1, dir1) {
   # Predicted types (summary)
   write.table(
     d1[["predicted_sum"]],
-    paste(dir1, file1, "predicted_sum.txt", sep = "_"),
+    paste0(dir1, file1, "_predicted_sum.txt"),
     row.names = FALSE,
     col.names = TRUE,
     sep = "\t"
@@ -547,7 +543,7 @@ sc_save_pred <- function(so_pred, file1, dir1) {
   # Predicted types (assigned)
   write.table(
     d1[["assigned_types"]],
-    paste(dir1, file1, "assigned_types.txt", sep = "_"),
+    paste0(dir1, file1, "_assigned_types.txt"),
     row.names = FALSE,
     col.names = TRUE,
     sep = "\t"

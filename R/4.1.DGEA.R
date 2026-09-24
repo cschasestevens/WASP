@@ -10,7 +10,9 @@
 #' Seurat object to pull from the chosen assay.
 #' @param ct CellType column name.
 #' @param var_id Sample ID column name.
-#' @param mtd DGEA/DA method to use (either "MAST" or "nebula").
+#' @param mtd DGEA/DA method to use (either "MAST", "nebula",
+#' "lme", "limma", or "wilcox"). Differential accessbility tests
+#' run on chromVAR assays default to "wilcox".
 #' Set to nebula by default.
 #' @param form1 Formula to use for MAST generalized linear model. Usually
 #' consists of two terms, the first of which is the treatment group column
@@ -54,12 +56,113 @@ sc_diff <- function( # nolint
   assy <- asy
   # MAST formula terms
   form <- form1
-  #---- Function: linear mixed effects model (chromvar assays only) ----
+  # Change method if chromVAR present
+  if (assy == "chromvar") {
+    mtd1 = "wilcox"
+  }
+  #---- Function: Wilcox Rank Sum Test (chromvar assays only) ----
+  fun.wilcox <- function() { # nolint
+    # Define parameters
+    Seurat::DefaultAssay(d) <- "chromvar"
+    tx <- unique(d@meta.data[[form[[1]]]])
+    if (class(d@meta.data[[c]]) == "factor") {
+      ctlist <- levels(d@meta.data[[c]])
+    } else {
+      ctlist <- levels(
+        factor(
+          d@meta.data[[c]],
+          levels = gtools::mixedsort(
+            unique(d@meta.data[[c]])
+          )
+        )
+      )
+    }
+    # Run test for each cell type and bind results
+    if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
+      res1 <- setNames(parallel::mclapply(
+        mc.cores = 4,
+        seq.int(1, length(ctlist), 1),
+        function(i) {
+          cat("Initializing wilcox test for:", ctlist[[i]], "\n")
+          tryCatch(
+            {
+              # Subset by cell type
+              d2 <- d[, d@meta.data[[c]] == ctlist[[i]]]
+              Seurat::Idents(d2) <- form[[1]]
+              d2res <- FindMarkers(
+                object = d2,
+                ident.1 = tx[[2]],
+                ident.2 = tx[[1]],
+                test.use = "wilcox",
+                mean.fxn = rowMeans,
+                fc.name = "avg_diff",
+                min.pct = -Inf,
+                logfc.threshold = 0
+              )
+              d2res[[c]] <- ctlist[[i]]
+              d2res[["TF"]] <- rownames(d2res)
+              d2res <- dplyr::select(
+                d2res, c, "TF", everything()
+              )
+              d2res[[paste0("avg_diff_", tx[[2]], "_vs_", tx[[1]])]] <- d2res[["avg_diff"]] # nolint
+              d2res <- dplyr::select(d2res, -c("avg_diff"))
+              cat("Successful", "\n")
+              d2res
+            },
+            error = function(e) {
+              cat("Wilcox test failed for:", ctlist[[i]], "\n")
+            }
+          )
+        }
+      ), ctlist)
+      res1 <- dplyr::bind_rows(res1[lengths(res1) > 1])
+    } else {
+      res1 <- setNames(parallel::mclapply(
+        mc.cores = 4,
+        seq.int(1, length(ctlist), 1),
+        function(i) {
+          cat("Initializing wilcox test for:", ctlist[[i]], "\n")
+          tryCatch(
+            {
+              # Subset by cell type
+              d2 <- d[, d@meta.data[[c]] == ctlist[[i]]]
+              Seurat::Idents(d2) <- form[[1]]
+              d2res <- FindMarkers(
+                object = d2,
+                ident.1 = tx[[2]],
+                ident.2 = tx[[1]],
+                test.use = "wilcox",
+                mean.fxn = rowMeans,
+                fc.name = "avg_diff",
+                min.pct = -Inf,
+                logfc.threshold = 0
+              )
+              d2res[[c]] <- ctlist[[i]]
+              d2res[["TF"]] <- rownames(d2res)
+              d2res <- dplyr::select(
+                d2res, c, "TF", everything()
+              )
+              d2res[[paste0("avg_diff_", tx[[2]], "_vs_", tx[[1]])]] <- d2res[["avg_diff"]] # nolint
+              d2res <- dplyr::select(d2res, -c("avg_diff"))
+              cat("Successful", "\n")
+              d2res
+            },
+            error = function(e) {
+              cat("Wilcox test failed for:", ctlist[[i]], "\n")
+            }
+          )
+        }
+      ), ctlist)
+      res1 <- dplyr::bind_rows(res1[lengths(res1) > 1])
+    }
+    return(res1) # nolint
+  }
+  #---- Function: linear mixed effects model ----
   fun.lme <- function(dso) { # nolint
     d1 <- dso
     ## Input
     deg_mat <- as.matrix(
-      SeuratObject::GetAssayData(d1, layer = "data", assay = "chromvar")
+      SeuratObject::GetAssayData(d1, layer = slt, assay = assy)
     )
     deg_mat <- as.data.frame(t(deg_mat))
     # Select metadata columns
@@ -158,12 +261,12 @@ sc_diff <- function( # nolint
     ))
     return(list_lme) # nolint
   }
-  #---- Function: limma and empirical Bayes for chromVAR data ----
+  #---- Function: limma and empirical Bayes ----
   fun.limma <- function(dso) { # nolint
     d1 <- dso
     ## Input
     deg_mat <- SeuratObject::GetAssayData(
-      d1, layer = "data", assay = "chromvar"
+      d1, layer = slt, assay = assy
     )
     # Select metadata columns
     deg_cols <- data.frame(
@@ -278,7 +381,7 @@ sc_diff <- function( # nolint
       SeuratObject::GetAssayData(d1, layer = slt1, assay = asy1)
     )
     ## Set correct rownames if performing DA analysis
-    if (assy == "ATAC") { # nolint
+    if (asy1 == "ATAC") { # nolint
       rownames(deg_mat) <- paste(
         d1@assays[["chromvar"]]@meta.features$nearestGene,
         seq.int(1, nrow(d1@assays[[asy1]]@meta.features), 1),
@@ -309,7 +412,7 @@ sc_diff <- function( # nolint
     }
     if (mtd1 == "MAST") {
       ## Format input as DGEA/DA object
-      if (assy == "ATAC") {
+      if (asy1 == "ATAC") {
         dgea_sc <- MAST::FromMatrix(
           deg_mat,
           cData = deg_cols,
@@ -539,51 +642,16 @@ sc_diff <- function( # nolint
     }
     return(dgea_sum) # nolint
   }
-  #---- Function: add transcription factor motif names ----
-  fun.add.tfs <- function(ob1, cores1 = 1, motif_col = "motif") { # nolint
-    d1 <- ob1
-    if (motif_col != "motif") {
-      d1[["motif"]] <- d1[[motif_col]]
-      d1 <- dplyr::select(d1, -c(motif_col))
-    }
-    tf.fun <- function(gname) { # nolint
-      library(TFBSTools) # nolint
-      library(JASPAR2020) # nolint
-      ltf <- unique(d1[["motif"]])
-      ltf1 <- data.frame(
-        "motif" = ltf[[gname]],
-        "TF" = name(TFBSTools::getMatrixByID(JASPAR2020, ID = ltf[[gname]])) # nolint
-      )
-      return(ltf1) # nolint
-    }
-    if (Sys.info()[["sysname"]] != "Windows" && cores1 > 1) {
-      list_tf <- dplyr::bind_rows(
-        parallel::mclapply(
-          mc.cores = cores1,
-          seq.int(1, length(unique(d1[["motif"]])), 1),
-          function(j) tf.fun(j)
-        )
-      )
-    } else {
-      list_tf <- dplyr::bind_rows(
-        lapply(
-          seq.int(1, length(unique(d1[["motif"]])), 1),
-          function(j) tf.fun(j)
-        )
-      )
-    }
-    d1 <- dplyr::select(
-      dplyr::left_join(d1, list_tf, by = "motif"),
-      "CellType", "motif", "TF", everything() # nolint
-    )
-    return(d1) # nolint
-  }
   #---- Run test and output results ----
   if (mtd1 == "MAST" || mtd1 == "nebula") {
     # Input
     dgea1 <- fun.input(d, assy, slt)
     # Subsetting
     dgea2 <- fun.subset(dgea1)
+    names(dgea2)
+    names(dgea2[[1]])
+    dgea2[[1]][[2]]
+    head(dgea2[[1]])
     # Run test
     if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
       dgea3 <- setNames(parallel::mclapply(
@@ -677,23 +745,21 @@ sc_diff <- function( # nolint
     }
     # Combine results for each cell type and save
     dgea4 <- fun.format(dgea3)
-    if (assy == "chromvar") {
-      dgea4 <- fun.add.tfs(dgea4, cores1 = 12, motif_col = "GENE")
-    }
   }
-  if (mtd1 == "limma" && assy == "chromvar") {
-    cat("Selected assay is `chromvar`; running limma model...", "\n")
+  if (mtd1 == "limma") {
+    cat("Running limma model...", "\n")
     # Fit linear model
     dgea4 <- fun.limma(d)
-    # Assign motif names
-    dgea4 <- fun.add.tfs(dgea4, cores1 = 12) # nolint
   }
-  if (mtd1 == "lme" && assy == "chromvar") {
-    cat("Selected assay is `chromvar`; running linear model...", "\n")
+  if (mtd1 == "lme") {
+    cat("Running linear model...", "\n")
     # Fit linear model
     dgea4 <- fun.lme(d)
-    # Assign motif names
-    dgea4 <- fun.add.tfs(dgea4, cores1 = 12) # nolint
+  }
+  if (mtd1 == "wilcox") {
+    cat("Selected assay is chromVAR; Running wilcox test...", "\n") # nolint
+    # Fit linear model
+    dgea4 <- fun.wilcox()
   }
   return(dgea4) # nolint
 }

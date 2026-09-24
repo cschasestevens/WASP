@@ -1,4 +1,4 @@
-# WASP v4.37 (20260918)
+# WASP v4.38 (20260924)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -31,9 +31,7 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * patchwork,
         * Azimuth,
         * BSgenome.Hsapiens.UCSC.hg38 (Bioconductor),
-        * chromVAR,
         * JASPAR2020 (Bioconductor),
-        * TFBSTools (Bioconductor),
         * MAST (Bioconductor),
         * org.Hs.eg.db (Bioconductor),
         * CellChat,
@@ -71,7 +69,9 @@ Incorporates Seurat and Signac with various R packages to perform processing and
         * shadowtext,
         * stringr,
         * motifmatchr (Bioconductor),
-        * Gviz
+        * Gviz,
+        * TFBSTools,
+        * chromVAR
 
 ### Installation
 * Run the following in a new R session on the command line or within R-Studio:
@@ -117,6 +117,13 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.38
+    * Updated multiome data integration using sc_integrate_data to save intermediate objects in the event of script failure or unforeseen errors.
+    * Corrected errors in directory selection when running sc_save_pred.
+    * Modified sc_predict to subset Seurat object by cluster prior to running predictions in order to conserve memory.
+    * Added sc_chromvar function for calculating estimated transcription factor activity. Similar to RunChromVAR function in older versions of Signac, which is now deprecated.
+    * Updated differential testing and visualization functions for compatibility with new chromVAR assays.
+    * Removed redundant heatmap functions from package.
 * 4.37
     * Updated sc_multiome_process for compatibility with newer versions of Signac and Seurat.
 * 4.36
