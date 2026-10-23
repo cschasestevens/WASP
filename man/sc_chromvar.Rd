@@ -9,8 +9,9 @@ sc_chromvar(
   so,
   file_jaspar,
   asy = "ufy.peaks",
-  genome_use = "hg38",
-  bsgenome_sel = BSgenome.Hsapiens.UCSC.hg38
+  slt = "counts",
+  bsgenome_sel = BSgenome.Hsapiens.UCSC.hg38,
+  cores = 12
 )
 }
 \arguments{
@@ -24,7 +25,8 @@ https://jaspar.elixir.no/downloads/.}
 
 \item{asy}{Name of unified ATAC peak assay in Seurat object.}
 
-\item{genome_use}{Name of genome to use for creating motif matix.}
+\item{slt}{Slot from the chosen assay to use for filtering out
+empty peaks.}
 
 \item{bsgenome_sel}{BSgenome library name (provided as object).}
 }

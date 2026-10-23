@@ -4,12 +4,32 @@
 \alias{sc_cc_run}
 \title{CellChat Based Cell-cell Communication}
 \usage{
-sc_cc_run(so, asy1 = "SCT", g_name, s_name, ct_col = "CellType", parl = TRUE)
+sc_cc_run(
+  so,
+  db_type = "native",
+  db_native = CellChatDB.human,
+  db_custom = NULL,
+  asy1 = "SCT",
+  g_name = "Group",
+  s_name = "Code",
+  ct_col = "CellType",
+  cores = 1,
+  fsize = 3000
+)
 }
 \arguments{
 \item{so}{A Seurat object. Must contain a gene expression assay.}
 
-\item{asy1}{RNA assay to use.}
+\item{db_type}{Database type (either "native" or "custom"). Formats
+custom lists into CellChat database format. If "custom," appends custom
+list to the selected native CellChat database.}
+
+\item{db_native}{Native CellChat database to use.
+Can provide a custom list of ligand-receptor pairs (see example data).}
+
+\item{db_custom}{Path to data frame containing custom ligand receptor pairs.}
+
+\item{asy1}{Normalized RNA assay to use.}
 
 \item{g_name}{Group name for comparing cell-cell communication between
 treatments, provided as a character string. If only one group is present,
@@ -20,21 +40,23 @@ that all cells belong to the same group.}
 
 \item{ct_col}{Cell type column name to use in the selected Seurat object.}
 
-\item{parl}{Should CellChat be run in parallel?}
+\item{cores}{If not using Windows, how many cores should be used
+for processing?}
+
+\item{fsize}{Future globals size (in GB). Only applicable if cores > 1.}
 }
 \value{
-A data frame including either pathway or individual
-ligand-receptor interactions.
+A list containing individual L-R and pathway level communications.
 }
 \description{
 Conducts CellChat for a selected Seurat object, either provided as
-a whole data set or split by a treatment variable for comparison.
+a whole dataset or split by a treatment variable for comparison.
 }
 \examples{
 
 # ccmerge <- sc_cc_run(
 #   so = d,
-#   asy1 = "RNA",
+#   db_custom = "ref/20261014_lipid_pairs_for_cellchat_v01.csv",
 #   g_name = "Group",
 #   s_name = "Code",
 #   ct_col = "CellType"

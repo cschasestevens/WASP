@@ -1,4 +1,4 @@
-# WASP v4.38 (20260924)
+# WASP v4.39 (20261022)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -117,6 +117,9 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.39
+    * Updated CellChat functions to accept custom databases of ligand-receptor pairs.
+    * Added sc_cc_heatmap function for visualizing communication probabilities of CellChat results data frames.
 * 4.38
     * Updated multiome data integration using sc_integrate_data to save intermediate objects in the event of script failure or unforeseen errors.
     * Corrected errors in directory selection when running sc_save_pred.
