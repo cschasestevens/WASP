@@ -1,4 +1,4 @@
-# WASP v4.39 (20261022)
+# WASP v4.40 (20261028)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -117,6 +117,8 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.40
+    * Resolved error in formatting custom CellChat database.
 * 4.39
     * Updated CellChat functions to accept custom databases of ligand-receptor pairs.
     * Added sc_cc_heatmap function for visualizing communication probabilities of CellChat results data frames.

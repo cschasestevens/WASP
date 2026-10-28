@@ -55,6 +55,7 @@ sc_cc_run <- function(
     CellChatDB.use <- CellChatDB # nolint
   }
   if (db_type == "custom") {
+    base_db <- CellChatDB.human # nolint
     ccdb <- read.csv(db_custom)
     ccdb <- list(
       interaction = ccdb,
@@ -85,8 +86,7 @@ sc_cc_run <- function(
   ## Subset by condition and run Cell Chat
   if (Sys.info()[["sysname"]] != "Windows" && cores > 1) {
     dcc_l <- setNames(
-      parallel::mclapply(
-        mc.cores = 2,
+      lapply(
         seq.int(1, length(unique(dcc@meta.data[[g_name]])), 1),
         function(x) {
           cat("Subsetting data by group column...", "\n")
