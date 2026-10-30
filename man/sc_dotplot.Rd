@@ -5,38 +5,24 @@
 \title{Dot Plot}
 \usage{
 sc_dotplot(
-  p_type = "cstm",
-  topn = 10,
   l_gene,
-  filt_var = NULL,
   so,
   asy1 = "RNA",
   ct_filt = FALSE,
   ct = NULL,
-  ct_var,
-  split_var = FALSE,
+  ct_var = "CellType",
   list_var = NULL,
-  col1 = col_grad(),
-  vline1 = FALSE,
-  xint = NULL
+  col1 = col_grad(scm = 4),
+  include_all_genes = TRUE,
+  groups_xaxis = NULL,
+  groups_yaxis = NULL
 )
 }
 \arguments{
-\item{p_type}{Should a custom gene list or DGEA results object
-be used for plotting?
-Type "cstm" for custom gene lists and "threshold"
-for using DGEA/DA results.}
+\item{l_gene}{A vector of genes/TFs for plotting. If a data frame
+is provided, the first column is used for selecting genes to plot.}
 
-\item{topn}{If p_type is "threshold," select the number of
-top DEGs/TFs to plot.}
-
-\item{l_gene}{A list of DGEA/DA results
-or a vector of selected genes for plotting.}
-
-\item{filt_var}{If plotting based on a threshold,
-which variable should be used for filtering?}
-
-\item{so}{An object of class Seurat.}
+\item{so}{A Seurat object.}
 
 \item{asy1}{Assay to use for the selected Seurat object. Note
 that the assay must match the names in the seleceted
@@ -50,18 +36,21 @@ matching a specific cell type or types if ct_filt is TRUE.}
 \item{ct_var}{Character string indicating the name of the
 cluster/cell type variable.}
 
-\item{split_var}{Logical indicating whether the cluster variable
-should be stratified by additional group variables.}
-
-\item{list_var}{If split_var is TRUE, provide a vector of character strings
-containing two group variables for stratifying plot points.}
+\item{list_var}{A vector of character strings containing
+up to two group variables for stratifying cell types.}
 
 \item{col1}{Gradient color scheme to use.}
 
-\item{vline1}{Add a vertical line to plot?}
+\item{include_all_genes}{Logical indicating whether genes/TFs
+missing from the Seurat object should be included as blank columns
+in the plot. Useful for comparing a common gene list across data sets.}
 
-\item{xint}{If vline1 is TRUE, specify the x-intercept of the vertical line
-to place on the dot plot.}
+\item{groups_xaxis}{Grouping variable derived from the input gene list
+that is used to highlight functionally related genes/TFs in the plot.}
+
+\item{groups_yaxis}{A vector containing one or more integers that
+are used for plotting dotted lines along the y-axis.
+Used to separate cell types or related cell groups.}
 }
 \value{
 A dotplot and formatted data frame for the selected assay.
@@ -73,8 +62,7 @@ Generates a dot plot from a Seurat Object and a DGEA/DA list.
 
 # sc_dotplot(
 #   so = d1,
-#   l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
-#   ct_var = "CellType"
+#   l_gene = lgene
 # )
 
 }

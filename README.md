@@ -1,4 +1,4 @@
-# WASP v4.40 (20261028)
+# WASP v4.41 (20261030)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -117,6 +117,9 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.41
+    * Simplified input parameters for sc_dotplot.
+    * Added parameters for highlighting functionally related genes in sc_dotplot.
 * 4.40
     * Resolved error in formatting custom CellChat database.
 * 4.39

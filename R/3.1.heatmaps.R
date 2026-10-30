@@ -411,17 +411,9 @@ sc_heatmap <- function(
 #'
 #' Generates a dot plot from a Seurat Object and a DGEA/DA list.
 #'
-#' @param p_type Should a custom gene list or DGEA results object
-#' be used for plotting?
-#' Type "cstm" for custom gene lists and "threshold"
-#' for using DGEA/DA results.
-#' @param topn If p_type is "threshold," select the number of
-#' top DEGs/TFs to plot.
-#' @param l_gene A list of DGEA/DA results
-#' or a vector of selected genes for plotting.
-#' @param filt_var If plotting based on a threshold,
-#' which variable should be used for filtering?
-#' @param so An object of class Seurat.
+#' @param l_gene A vector of genes/TFs for plotting. If a data frame
+#' is provided, the first column is used for selecting genes to plot.
+#' @param so A Seurat object.
 #' @param asy1 Assay to use for the selected Seurat object. Note
 #' that the assay must match the names in the seleceted
 #' list type (ex. DGEA/DA).
@@ -430,588 +422,366 @@ sc_heatmap <- function(
 #' matching a specific cell type or types if ct_filt is TRUE.
 #' @param ct_var Character string indicating the name of the
 #' cluster/cell type variable.
-#' @param split_var Logical indicating whether the cluster variable
-#' should be stratified by additional group variables.
-#' @param list_var If split_var is TRUE, provide a vector of character strings
-#' containing two group variables for stratifying plot points.
+#' @param list_var A vector of character strings containing
+#' up to two group variables for stratifying cell types.
 #' @param col1 Gradient color scheme to use.
-#' @param vline1 Add a vertical line to plot?
-#' @param xint If vline1 is TRUE, specify the x-intercept of the vertical line
-#' to place on the dot plot.
+#' @param include_all_genes Logical indicating whether genes/TFs
+#' missing from the Seurat object should be included as blank columns
+#' in the plot. Useful for comparing a common gene list across data sets.
+#' @param groups_xaxis Grouping variable derived from the input gene list
+#' that is used to highlight functionally related genes/TFs in the plot.
+#' @param groups_yaxis A vector containing one or more integers that
+#' are used for plotting dotted lines along the y-axis.
+#' Used to separate cell types or related cell groups.
 #' @return A dotplot and formatted data frame for the selected assay.
 #' @examples
 #'
 #' # sc_dotplot(
 #' #   so = d1,
-#' #   l_gene = c("SFTPB", "RNASE1", "FOXA2", "TMEM45A", "MUC5B"),
-#' #   ct_var = "CellType"
+#' #   l_gene = lgene
 #' # )
 #'
 #' @export
 sc_dotplot <- function( # nolint
-  p_type = "cstm",
-  topn = 10,
   l_gene,
-  filt_var = NULL,
   so,
   asy1 = "RNA",
   ct_filt = FALSE,
   ct = NULL,
-  ct_var,
-  split_var = FALSE,
+  ct_var = "CellType",
   list_var = NULL,
-  col1 = col_grad(), # nolint
-  vline1 = FALSE,
-  xint = NULL
+  col1 = col_grad(scm = 4), # nolint
+  include_all_genes = TRUE,
+  groups_xaxis = NULL,
+  groups_yaxis = NULL
 ) {
   # Load data and define plot variables
-  d <- so
-  SeuratObject::DefaultAssay(d) <- asy1
-  c <- ct
-  l1 <- l_gene
+  d <- so # data
+  SeuratObject::DefaultAssay(d) <- asy1 # assay
+  c <- ct # cell type column
+  l1 <- l_gene # gene list
+  varct <- ct_var
+  vargrp <- list_var
+  # GEX assays
   if (grepl("RNA|sct|SCT", asy1)) {
     gvar <- "GENE"
     exvar <- "avg.exp"
     exvar2 <- "Average Expression"
   }
+  # ATAC assays
   if (grepl("ufy.peaks|chromvar", asy1)) {
     gvar <- "ID"
     exvar <- "avg.activity"
     exvar2 <- "Average Activity"
-    if (p_type == "cstm") {
-      list_tf <- unlist(
-        lapply(
-          row.names(d),
-          function(x) {
-            name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-          }
-        )
-      )
-      l1 <- unlist(
-        lapply(
-          l1,
-          function(x) {
-            name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-          }
-        )
-      )
-      list_tf <- data.frame(
-        "ID" = rownames(d),
-        "Name" = list_tf
-      )
-      list_tf <- list_tf[order(list_tf[["Name"]]), ]
-      l1 <- list_tf[list_tf[["Name"]] %in% l1, "ID"]
-      l2 <- unlist(
-        lapply(
-          l1,
-          function(x) {
-            name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-          }
-        )
-      )
-    }
   }
-  # Select data based on threshold
-  if (p_type == "threshold") {
-    ## Return specified genes/motifs for selected comparison and cell types
-    top10 <- dplyr::select(
-      dplyr::slice_max(
-        dplyr::group_by(
-          l1,
-          dplyr::across(
-            dplyr::all_of(
-              c(
-                "Comparison",
-                ct_var
-              )
-            )
-          )
-        ),
-        order_by = -.data[[filt_var]], # nolint
-        n = topn
-      ),
-      c(
-        ct_var,
-        "Comparison",
-        gvar,
-        filt_var
-      )
-    )
-    ## filter list for chosen cell types
-    top10 <- top10[grepl(c, top10[[ct_var]]), ]
-    ## return list of unique genes
-    top10_pres <- unique(
-      top10[[gvar]][top10[[gvar]] %in% SeuratObject::Features(d)]
-    )
-    top10_abs <- subset(
-      top10[[gvar]],
-      !(top10[[gvar]] %in% SeuratObject::Features(d))
-    )
-  }
+  #---- format data based on custom gene list ----
   # Plot data based on a custom list
-  if (p_type == "cstm") {
+  # check for presence/absence of genes in list
+  if (class(l1) == "data.frame") {
+    top10 <- as.vector(l1[[1]])
+  } else {
     top10 <- as.vector(l1)
-    top10_pres <- unique(top10[top10 %in% SeuratObject::Features(d)])
-    top10_abs <- subset(top10, !(top10 %in% SeuratObject::Features(d)))
   }
-  ## select genes from Seurat object
-  if (split_var == TRUE) {
+  top10_pres <- unique(top10[top10 %in% SeuratObject::Features(d)])
+  top10_abs <- subset(top10, !(top10 %in% SeuratObject::Features(d)))
+  cat("The following are not present in the Seurat object:", "\n")
+  cat(top10_abs, "\n")
+  # pull genes from Seurat object
+  if (!is.null(vargrp)) {
     d1 <- cbind(
       SeuratObject::FetchData(
         d,
         vars = c(
-          ct_var,
-          list_var,
+          varct,
+          vargrp,
           top10_pres
         )
       )
     )
-    ## Set column names if plotting activity scores
-    if(grepl("ufy.peaks|chromvar", asy1)) { # nolint
-      if(p_type == "cstm") { # nolint
-        d1 <- setNames(
-          d1,
-          c(ct_var, list_var, l2)
-        )
-        top10_pres <- l2
-      }
-      if(p_type == "threshold") { # nolint
-        l2 <- unlist(
-          lapply(
-            top10_pres,
-            function(x) {
-              name(TFBSTools::getMatrixByID(JASPAR2020, ID = x)) # nolint
-            }
-          )
-        )
-        d1 <- setNames(
-          d1,
-          c(ct_var, list_var, l2)
-        )
-        top10_pres <- l2
-      }
-    }
-  }
-  if(split_var == FALSE) { # nolint
+  } else {
     d1 <- cbind(
       SeuratObject::FetchData(
         d,
         vars = c(
-          ct_var,
+          varct,
           top10_pres
         )
       )
     )
-    ## Set column names if plotting activity scores
-    if(grepl("ufy.peaks|chromvar", asy1)) { # nolint
-      d1 <- setNames(
-        d1,
-        c(ct_var, l2)
-      )
-      top10_pres <- l2
-    }
   }
-  ## Subset based on cell type if ct_filt is TRUE
+  # Initialize empty columns for missing genes if desired
+  if (include_all_genes == TRUE) {
+    cat("Initializing columns for missing genes/TFs", "\n")
+    d1 <- dplyr::bind_cols(
+      d1,
+      setNames(as.data.frame(
+        lapply(
+          seq.int(1, length(top10_abs), 1),
+          function(i) {
+            rep(0, nrow(d1))
+          }
+        )
+      ), top10_abs)
+    )
+    d1 <- d1[, c(varct, vargrp, top10)]
+  } else {
+    d1 <- d1
+  }
+  #---- Cell Type Filter ----
   if(ct_filt == TRUE) { # nolint
-    d1 <- d1[grepl(c, d1[[ct_var]]), ]
+    d1 <- d1[grepl(c, d1[[varct]]), ]
   }
+  #---- Calculate percent expressing cells and ratios ----
   ## Count/ratio table for creating dot plots
   d1_prc <- dplyr::bind_rows(
     setNames(
       lapply(
-        top10_pres,
+        top10,
         function(x) {
           # Determine average expression of each gene
-          ## for 2 variables:
-          if(split_var == TRUE && length(list_var) == 2) { # nolint
-            ### average expression
-            d_avg <- setNames(
-              aggregate(
-                d1[[x]],
-                by = list(
-                  d1[,  c(ct_var)],
-                  d1[,  c(list_var[[1]])],
-                  d1[,  c(list_var[[2]])]
-                ),
-                function(y) mean(y)
+          d_avg <- setNames(
+            aggregate(
+              d1[[x]],
+              by = lapply(
+                seq.int(1, length(c(varct, vargrp)), 1),
+                function(j) {
+                  d1[, c(varct, vargrp)[[j]]]
+                }
               ),
-              c(
-                ct_var, c(list_var),
-                exvar
-              )
+              function(y) mean(y)
+            ),
+            c(
+              c(varct, vargrp),
+              exvar
             )
-            d_avg[[exvar]] <- round(
-              d_avg[[exvar]],
-              digits = 2
-            )
-            ### percent expressed
+          )
+          d_avg[[exvar]] <- round(
+            d_avg[[exvar]],
+            digits = 2
+          )
+          ### percent expressed
+          if (is.null(vargrp)) {
             d_prc <- dplyr::count(
-              d1, .data[[ct_var]], # nolint
-              .data[[list_var[[1]]]],
-              .data[[list_var[[2]]]],
+              d1, .data[[varct]], # nolint
               .data[[x]] > 0
             )
-            d_prc <- setNames(
-              dplyr::filter(
-                d_prc, d_prc[4] == TRUE
-              ),
-              c(
-                ct_var, c(list_var),
-                "pres", "n"
+          } else {
+            if (length(vargrp) == 2) {
+              d_prc <- dplyr::count(
+                d1, .data[[varct]], # nolint
+                .data[[vargrp[[1]]]],
+                .data[[vargrp[[2]]]],
+                .data[[x]] > 0
               )
+            } else {
+              d_prc <- dplyr::count(
+                d1, .data[[varct]], # nolint
+                .data[[vargrp[[1]]]],
+                .data[[x]] > 0
+              )
+            }
+          }
+          d_prc <- setNames(
+            dplyr::filter(
+              d_prc, d_prc[[length(c(varct, vargrp)) + 1]] == TRUE
+            ),
+            c(
+              c(varct, vargrp),
+              "pres", "n"
             )
+          )
+          if (is.null(vargrp)) {
             d_cnt <- setNames(
               dplyr::count(
-                d1, .data[[ct_var]], # nolint
-                .data[[list_var[[1]]]],
-                .data[[list_var[[2]]]]
+                d1, .data[[varct]], # nolint
               ),
               c(
-                ct_var, c(list_var),
+                c(varct, vargrp),
                 "n"
               )
             )
-            d_comb <- dplyr::left_join(
-              d_cnt,
-              d_prc,
-              by = c(
-                ct_var, c(list_var)
-              )
-            )
-            d_comb[is.na(d_comb)] <- 0
-            d_comb <- dplyr::mutate(
-              d_comb,
-              "perc.exp" = round(
-                d_comb[["n.y"]] /
-                  d_comb[["n.x"]],
-                digits = 2
-              )
-            )
-            ### combined
-            d_comb_out <- dplyr::left_join(
-              d_avg,
-              d_comb[,
-                     c(
-                       ct_var, c(list_var),
-                       "perc.exp"
-                     )],
-              by = c(
-                ct_var,
-                c(list_var)
-              )
-            )
-          }
-          if(split_var == TRUE && length(list_var) < 2) { # nolint
-            ### average expression
-            d_avg <- setNames(
-              aggregate(
-                d1[[x]],
-                by = list(
-                  d1[, c(ct_var)],
-                  d1[, c(list_var[[1]])]
+          } else {
+            if (length(vargrp) == 2) {
+              d_cnt <- setNames(
+                dplyr::count(
+                  d1, .data[[varct]], # nolint
+                  .data[[vargrp[[1]]]],
+                  .data[[vargrp[[2]]]]
                 ),
-                function(y) mean(y)
-              ),
-              c(
-                ct_var, c(list_var),
-                exvar
+                c(
+                  c(varct, vargrp),
+                  "n"
+                )
               )
-            )
-            d_avg[[exvar]] <- round(
-              d_avg[[exvar]],
+            } else {
+              d_cnt <- setNames(
+                dplyr::count(
+                  d1, .data[[varct]], # nolint
+                  .data[[vargrp[[1]]]]
+                ),
+                c(
+                  c(varct, vargrp),
+                  "n"
+                )
+              )
+            }
+          }
+          # combine percents and counts to determine ratio expressed
+          d_comb <- dplyr::left_join(
+            d_cnt,
+            d_prc,
+            by = c(varct, vargrp)
+          )
+          d_comb[is.na(d_comb)] <- 0
+          d_comb <- dplyr::mutate(
+            d_comb,
+            "perc.exp" = round(
+              d_comb[["n.y"]] /
+                d_comb[["n.x"]],
               digits = 2
             )
-            ### percent expressed
-            d_prc <- dplyr::count(
-              d1,.data[[ct_var]], # nolint
-              .data[[list_var[[1]]]],
-              .data[[x]] > 0
-            )
-            d_prc <- setNames(
-              dplyr::filter(
-                d_prc, d_prc[3] == TRUE
-              ),
-              c(
-                ct_var, c(list_var),
-                "pres", "n"
-              )
-            )
-            d_cnt <- setNames(
-              dplyr::count(
-                d1, .data[[ct_var]], # nolint
-                .data[[list_var[[1]]]]
-              ),
-              c(
-                ct_var, c(list_var),
-                "n"
-              )
-            )
-            d_comb <- dplyr::left_join(
-              d_cnt,
-              d_prc,
-              by = c(
-                ct_var, c(list_var)
-              )
-            )
-            d_comb[is.na(d_comb)] <- 0
-            d_comb <- dplyr::mutate(
-              d_comb,
-              "perc.exp" = round(
-                d_comb[["n.y"]] /
-                  d_comb[["n.x"]],
-                digits = 2
-              )
-            )
-            ### combined
-            d_comb_out <- dplyr::left_join(
-              d_avg,
-              d_comb[,
-                     c(
-                       ct_var, c(list_var),
-                       "perc.exp"
-                     )],
-              by = c(
-                ct_var,
-                c(list_var)
-              )
-            )
-          }
-          if(split_var == FALSE) { # nolint
-            ### average expression/activity
-            d_avg <- setNames(
-              aggregate(
-                d1[[x]],
-                by = list(
-                  d1[, c(ct_var)]
-                ),
-                function(y) mean(y)
-              ),
-              c(
-                ct_var,
-                exvar
-              )
-            )
-            d_avg[[exvar]] <- round(
-              d_avg[[exvar]],
-              digits = 2
-            )
-            ### percent expressed
-            d_prc <- dplyr::count(
-              d1,.data[[ct_var]], # nolint
-              .data[[x]] > 0
-            )
-            d_prc <- setNames(
-              dplyr::filter(
-                d_prc, d_prc[2] == TRUE
-              ),
-              c(
-                ct_var,
-                "pres", "n"
-              )
-            )
-            d_cnt <- setNames(
-              dplyr::count(
-                d1, .data[[ct_var]] # nolint
-              ),
-              c(
-                ct_var,
-                "n"
-              )
-            )
-            d_comb <- dplyr::left_join(
-              d_cnt,
-              d_prc,
-              by = c(
-                ct_var
-              )
-            )
-            d_comb[is.na(d_comb)] <- 0
-            d_comb <- dplyr::mutate(
-              d_comb,
-              "perc.exp" = round(
-                d_comb[["n.y"]] /
-                  d_comb[["n.x"]],
-                digits = 2
-              )
-            )
-            ### combined
-            d_comb_out <- dplyr::left_join(
-              d_avg,
-              d_comb[,
-                     c(
-                       ct_var,
-                       "perc.exp"
-                     )],
-              by = c(
-                ct_var
-              )
-            )
-          }
+          )
+          ### combined
+          d_comb_out <- dplyr::left_join(
+            d_avg,
+            d_comb[,
+                   c(
+                     c(varct, vargrp),
+                     "perc.exp"
+                   )],
+            by = c(varct, vargrp)
+          )
           return(d_comb_out) # nolint
         }
       ),
-      c(top10_pres)
+      c(top10)
     ),
     .id = gvar
   )
-  ## Add row name labels and convert GENE/Motif column to factor
-  if(split_var == TRUE && length(list_var) == 2) { # nolint
-    d1_prc <- data.frame(
-      d1_prc,
-      "labs" = factor(
-        paste(
-          d1_prc[[ct_var]],
-          d1_prc[[list_var[[1]]]],
-          d1_prc[[list_var[[2]]]],
-          sep = " "
-        ),
-        levels = gtools::mixedsort(
-          unique(
-            paste(
-              d1_prc[[ct_var]],
-              d1_prc[[list_var[[1]]]],
-              d1_prc[[list_var[[2]]]],
-              sep = " "
-            )
-          )
+
+  #---- Format labels and variable column for plotting ----
+  d1_prc <- data.frame(
+    d1_prc,
+    "labs" = factor(
+      do.call(paste, c(d1_prc[c(varct, vargrp)], sep = " ")),
+      levels = gtools::mixedsort(
+        unique(
+          do.call(paste, c(d1_prc[c(varct, vargrp)], sep = " "))
         )
       )
     )
-    d1_prc[[gvar]] <- factor(
-      d1_prc[[gvar]],
-      levels = unique(
-        d1_prc[[gvar]]
-      )
+  )
+  d1_prc[[gvar]] <- factor(
+    d1_prc[[gvar]],
+    levels = unique(
+      d1_prc[[gvar]]
     )
-  }
-  ## Add row name labels and convert GENE column to factor
-  if(split_var == TRUE && length(list_var) < 2) { # nolint
-    d1_prc <- data.frame(
-      d1_prc,
-      "labs" = factor(
-        paste(
-          d1_prc[[ct_var]],
-          d1_prc[[list_var[[1]]]],
-          sep = " "
-        ),
-        levels = gtools::mixedsort(
-          unique(
-            paste(
-              d1_prc[[ct_var]],
-              d1_prc[[list_var[[1]]]],
-              sep = " "
-            )
+  )
+  #---- Plot annotations ----
+  if (!is.null(groups_xaxis)) {
+    if (class(l1[[groups_xaxis]]) == "character") {
+      l1[[groups_xaxis]] <- factor(
+        l1[[groups_xaxis]], levels = unique(l1[[groups_xaxis]])
+      )
+    }
+    annox <- dplyr::count(
+      l1,
+      .data[[groups_xaxis]]
+    )
+    annox <- lapply(
+      seq.int(1, length(unique(annox[[groups_xaxis]])), 1),
+      function(k) {
+        n1 <- k
+        prop1 <- data.frame(
+          "tot_genes" = length(unique(d1_prc[[gvar]])),
+          "tot_sections" = nrow(annox),
+          "section" = n1,
+          "name" = annox[n1, ][[groups_xaxis]],
+          "span" = annox[n1, ][["n"]]
+        )
+        prop1[["min"]] <- sum(annox[1:n1, ][["n"]]) + 0.5 - prop1[["span"]]
+        prop1[["max"]] <- sum(annox[1:n1, ][["n"]]) + 0.5
+        list(
+          # Background shading for groups
+          ggplot2::annotate(
+            geom = "rect",
+            xmin = prop1[["min"]],
+            xmax = prop1[["max"]],
+            ymin = -Inf, ymax = Inf,
+            alpha = 0.25,
+            fill = col_univ()[[n1]]
+          ),
+          # Labels
+          ggplot2::annotate(
+            geom = "label", x = (prop1[["max"]] + prop1[["min"]]) / 2,
+            y = 0.6,
+            label = annox[n1, ][[groups_xaxis]],
+            color = col_univ()[[n1]],
+            fontface = "bold"
           )
         )
-      )
-    )
-    d1_prc[[gvar]] <- factor(
-      d1_prc[[gvar]],
-      levels = unique(
-        d1_prc[[gvar]]
-      )
+      }
     )
   }
-  if(split_var == FALSE) { # nolint
-    d1_prc <- data.frame(
-      d1_prc,
-      "labs" = d1_prc[[ct_var]]
-    )
-    d1_prc[[gvar]] <- factor(
-      d1_prc[[gvar]],
-      levels = unique(
-        d1_prc[[gvar]]
-      )
+  if (!is.null(groups_yaxis)) {
+    # add lines to at each position specified by groups_yaxis
+    annoy <- lapply(
+      seq.int(1, length(groups_yaxis), 1),
+      function(k) {
+        # add hline to distinguish related cell types
+        ggplot2::geom_hline(
+          yintercept = groups_yaxis[[k]], linetype = "dashed"
+        )
+      }
     )
   }
-  ## Plot
-  if(vline1 == FALSE) { # nolint
-    p_dot <- ggplot2::ggplot(
-      d1_prc,
-      ggplot2::aes(
-        x = .data[[gvar]], # nolint
+  #---- Final plot output ----
+  p_dot <- ggplot2::ggplot(
+    data = d1_prc,
+    ggplot2::aes(
+      x = .data[[gvar]],
+      y = .data[["labs"]]
+    )
+  )
+  p_elements <- list(
+    "theme_main" = sc_theme1(),
+    "theme_extra" =  ggplot2::theme(
+      plot.margin = ggplot2::unit(
+        c(.2, .2,
+          .2, .2),
+        "cm"
+      )
+    ),
+    "coords" =  ggplot2::geom_point(
+      shape = 21,
+      size = 0
+    ),
+    "group_shading" =  if (exists("annox")) annox else NULL,
+    "celltype_lines" = if (exists("annoy")) annoy else NULL,
+    "points" =  ggplot2::geom_point(
+      shape = 21,
+      mapping = ggplot2::aes(
+        x = .data[[gvar]],
         y = .data[["labs"]],
         fill = .data[[exvar]],
         size = .data[["perc.exp"]]
       )
-    ) +
-      ggplot2::geom_point(
-        shape = 21
-      ) +
-      ggplot2::scale_fill_gradientn(
-        colors = col1 # nolint
-      ) +
-      ggplot2::scale_size_area(max_size = 12) +
-      sc_theme1() + # nolint
-      ggplot2::labs(
-        fill = exvar2,
-        size = "Percent Expressed",
-        y = ""
-      ) +
-      ggplot2::theme(
-        plot.margin = ggplot2::unit(
-          c(.2, .2,
-            .2, .2),
-          "cm"
-        )
-      )
-  }
-  if(vline1 == TRUE) { # nolint
-    p_dot <- ggplot2::ggplot(
-      d1_prc,
-      ggplot2::aes(
-        x = .data[[gvar]], # nolint
-        y = .data[["labs"]],
-        fill = .data[[exvar]],
-        size = .data[["perc.exp"]]
-      )
-    ) +
-      ggplot2::geom_point(
-        shape = 21
-      ) +
-      ggplot2::geom_vline(xintercept = xint, linetype = "dashed") +
-      ggplot2::scale_fill_gradientn(
-        colors = col1 # nolint
-      ) +
-      ggplot2::scale_size_area(max_size = 12) +
-      sc_theme1() + # nolint
-      ggplot2::labs(
-        fill = exvar2,
-        size = "Percent Expressed",
-        y = ""
-      ) +
-      ggplot2::theme(
-        plot.margin = ggplot2::unit(
-          c(.2, .2,
-            .2, .2),
-          "cm"
-        )
-      )
-  }
-  if(exists("top10.abs") && length(top10_abs) == 1) { # nolint
-    print(
-      paste(
-        top10_abs,
-        "was not found in the provided Seurat object;
-        points for this gene/motif were excluded from the dot plot...",
-        sep = " "
-      )
+    ),
+    "scale_gradient" = ggplot2::scale_fill_gradientn(
+      colors = col_grad(scm = 4) # nolint
+    ),
+    "scale_size" = ggplot2::scale_size_area(max_size = 12),
+    "labels" = ggplot2::labs(
+      fill = exvar2,
+      size = "Percent Expressed",
+      y = ""
     )
-  }
-  if(exists("top10.abs") && length(top10_abs) > 1) { # nolint
-    print(
-      paste(
-        top10_abs,
-        "were not found in the provided Seurat object;
-        these genes/motifs were excluded from the dot plot...",
-        sep = " "
-      )
-    )
-  }
+  )
+  pout <- p_dot + p_elements
   return( # nolint
     list(
       "Input" = d1_prc,
-      "Plot" = p_dot
+      "Plot" = pout
     )
   )
 }
