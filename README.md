@@ -1,4 +1,4 @@
-# WASP v4.41 (20261030)
+# WASP v4.42 (20261116)
 
 Processing and Analysis of Single-cell RNA-Sequencing and ATAC-Sequencing Datasets
 
@@ -117,6 +117,9 @@ WASP::run_wasp_gui()
 * LinkedIn: https://www.linkedin.com/in/nathanial-chase-stevens-phd-08775180/
 
 ## Version History
+* 4.42
+    * Added parameters for additional customization of sc_umap.
+    * Fixed error in sc_dotplot when there are no missing genes in custom gene lists.
 * 4.41
     * Simplified input parameters for sc_dotplot.
     * Added parameters for highlighting functionally related genes in sc_dotplot.

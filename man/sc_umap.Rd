@@ -12,7 +12,11 @@ sc_umap(
   col1 = col_univ(),
   pos_leg = "none",
   show_lab = TRUE,
-  ret_input = FALSE
+  ret_input = FALSE,
+  lab_size = 5.5,
+  lab_bg_radius = 0.075,
+  lab_fill = "grey90",
+  lab_color = "black"
 )
 }
 \arguments{

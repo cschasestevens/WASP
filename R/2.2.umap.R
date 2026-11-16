@@ -36,7 +36,11 @@ sc_umap <- function(
   col1 = col_univ(), # nolint
   pos_leg = "none",
   show_lab = TRUE,
-  ret_input = FALSE
+  ret_input = FALSE,
+  lab_size = 5.5,
+  lab_bg_radius = 0.075,
+  lab_fill = "grey90",
+  lab_color = "black"
 ) {
   # Format input data
   d <- so
@@ -147,10 +151,10 @@ sc_umap <- function(
             )
             )
           ),
-          size = 5.5,
-          bg.color = "grey0",
-          color = "grey90",
-          bg.r = 0.075
+          size = lab_size,
+          bg.color = lab_color,
+          color = lab_fill,
+          bg.r = lab_bg_radius
         )
     }
   }

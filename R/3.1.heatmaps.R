@@ -510,7 +510,7 @@ sc_dotplot <- function( # nolint
     )
   }
   # Initialize empty columns for missing genes if desired
-  if (include_all_genes == TRUE) {
+  if (include_all_genes == TRUE && length(top10_abs) >= 1) {
     cat("Initializing columns for missing genes/TFs", "\n")
     d1 <- dplyr::bind_cols(
       d1,
@@ -768,7 +768,7 @@ sc_dotplot <- function( # nolint
       )
     ),
     "scale_gradient" = ggplot2::scale_fill_gradientn(
-      colors = col_grad(scm = 4) # nolint
+      colors = col1 # nolint
     ),
     "scale_size" = ggplot2::scale_size_area(max_size = 12),
     "labels" = ggplot2::labs(
